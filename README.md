@@ -73,7 +73,7 @@ Hardware y activos digitales usan DTO separados dentro de un DTO común y tablas
 
 - Contraseñas con BCrypt, sesiones de servidor y cookie `JSESSIONID` HttpOnly, SameSite=Lax y Secure configurable. Cambia el identificador de sesión al autenticar. Las sesiones actuales viven en memoria: un reinicio del backend requiere iniciar sesión otra vez.
 - CSRF también protege login y logout. Antes de modificar datos, obtener `GET /api/v1/auth/csrf` y enviar el token en `X-CSRF-TOKEN`, conservando la cookie. Obtener un token nuevo después del login. El frontend hace esto automáticamente.
-- `ORG_ADMIN` administra la empresa y autoriza cuentas; `ASSET_MANAGER` administra inventario y catálogos; `VIEWER` consulta y exporta. `system_admin` habilita la creación de organizaciones, pero no concede acceso implícito a inventarios ajenos.
+- `ORG_ADMIN` administra su empresa y autoriza cuentas; `ASSET_MANAGER` administra inventario y catálogos; `VIEWER` consulta y exporta. `system_admin` identifica al **administrador maestro** y concede acceso global a todas las empresas activas y a la administración del sistema. Las cuentas normales siguen limitadas a sus membresías.
 - Cada solicitud verifica cuenta activa, membresía y organización. Las referencias cruzadas utilizan claves foráneas compuestas `(organization_id,id)` y comprobaciones de servicio. No se confía en roles enviados por el cliente.
 - Códigos únicos por empresa, UUID, importes `BigDecimal`/`numeric(19,2)`, fechas y costos validados, asignación solo a empleados activos de la empresa.
 - Bloqueo pesimista del activo + transacción + índice único parcial de asignación vigente. La transferencia cierra y abre movimientos atómicamente. Relaciones padre/hijo comprobadas contra ciclos y cambios serializados por empresa.
@@ -83,6 +83,8 @@ Hardware y activos digitales usan DTO separados dentro de un DTO común y tablas
 - No se solicitan claves de producto, contraseñas ni tokens de proveedores. Las referencias contractuales deben ser públicas o no secretas. La auditoría registra cambios relevantes del activo y responsables; no registra credenciales.
 
 ## Uso de la aplicación
+
+**Administración maestra:** consulta [docs/MASTER_ADMIN.md](docs/MASTER_ADMIN.md) para crear una cuenta global independiente con `MASTER_ENABLED`, `MASTER_EMAIL` y `MASTER_PASSWORD`. Su panel en `/system` permite gestionar todas las organizaciones, usuarios y accesos; las cuentas normales siguen aisladas por empresa.
 
 1. Inicia sesión y selecciona tu empresa en la barra lateral.
 2. En Inventario, pulsa **Registrar activo** y selecciona hardware o digital. Registra primero categorías, empleados, ubicaciones o proveedores si trabajas sin los datos de demostración.
@@ -104,6 +106,7 @@ Hardware y activos digitales usan DTO separados dentro de un DTO común y tablas
 | `COOKIE_SECURE` | `false` para HTTP local, `true` con HTTPS |
 | `API_DOCS_ENABLED` | Publicación de Swagger y OpenAPI |
 | `LIFECYCLE_ALERT_MONTHS` | Horizonte de aviso de vida útil (6 por defecto) |
+| `MASTER_ENABLED`, `MASTER_EMAIL`, `MASTER_PASSWORD` | Aprovisionamiento de cuenta maestra independiente con acceso global; ver `docs/MASTER_ADMIN.md` |
 | `BOOTSTRAP_ENABLED` | Aprovisionar una instalación nueva sin datos de demostración |
 | `BOOTSTRAP_EMAIL`, `BOOTSTRAP_PASSWORD`, `BOOTSTRAP_ORGANIZATION` | Cuenta y empresa iniciales de una instalación vacía |
 

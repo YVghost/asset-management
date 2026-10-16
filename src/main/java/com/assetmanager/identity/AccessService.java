@@ -35,8 +35,30 @@ public class AccessService {
     return Boolean.TRUE.equals(user().get("system_admin"));
   }
 
+  public void master() {
+    if (!systemAdmin())
+      throw new ApiException(HttpStatus.FORBIDDEN, "Se requiere administrador maestro del sistema");
+  }
+
+  public List<Map<String, Object>> organizations() {
+    var current = user();
+    if (Boolean.TRUE.equals(current.get("system_admin")))
+      return db.queryForList(
+          "select id,name,'ORG_ADMIN' role from organizations where active=true order by name");
+    return db.queryForList(
+        "select o.id,o.name,m.role from organizations o join organization_memberships m on"
+            + " m.organization_id=o.id where m.user_id=? and o.active=true order by o.name",
+        current.get("id"));
+  }
+
   public String role(UUID org) {
     var user = user();
+    if (Boolean.TRUE.equals(user.get("system_admin"))) {
+      if (db.queryForObject(
+              "select count(*) from organizations where id=? and active=true", Long.class, org)
+          == 0) throw ApiException.missing();
+      return "ORG_ADMIN";
+    }
     var roles =
         db.queryForList(
             "select m.role from organization_memberships m join organizations o on"

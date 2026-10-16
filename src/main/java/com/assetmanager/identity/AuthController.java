@@ -75,13 +75,6 @@ public class AuthController {
   @GetMapping("/me")
   public Map<String, Object> me() {
     var user = access.user();
-    return Map.of(
-        "user",
-        user,
-        "organizations",
-        db.queryForList(
-            "select o.id,o.name,m.role from organizations o join organization_memberships m on"
-                + " m.organization_id=o.id where m.user_id=? and o.active=true order by o.name",
-            user.get("id")));
+    return Map.of("user", user, "organizations", access.organizations());
   }
 }

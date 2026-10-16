@@ -41,6 +41,7 @@ import { Inventory } from "./pages/Inventory";
 import { AssetForm } from "./pages/AssetForm";
 import { AssetDetail } from "./pages/AssetDetail";
 import { Catalog, EmployeeDetail } from "./pages/Catalogs";
+import { SystemAdmin } from "./pages/SystemAdmin";
 import type { Session } from "./types";
 import "./styles.css";
 const client = new QueryClient({
@@ -87,16 +88,30 @@ function App() {
   }
   const org =
     q.data.organizations.find((o) => o.id === selected) ||
-    q.data.organizations[0];
+    q.data.organizations[0] ||
+    (q.data.user.system_admin
+      ? { id: "", name: "Administración global", role: "ORG_ADMIN" as const }
+      : undefined);
   if (!org)
     return (
-      <ErrorBox
-        error={
-          new Error(
-            "Tu cuenta no tiene organizaciones autorizadas. Contacta al administrador.",
-          )
-        }
-      />
+      <div className="connection-error">
+        <ErrorBox
+          error={
+            new Error(
+              "Tu cuenta no tiene organizaciones autorizadas. Contacta al administrador.",
+            )
+          }
+        />
+        <button
+          className="button"
+          onClick={async () => {
+            await api("/auth/logout", "POST");
+            window.location.assign("/");
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
     );
   return (
     <SessionContext.Provider
@@ -145,12 +160,13 @@ function Shell() {
                   {o.name}
                 </option>
               ))}
+              {!org.id && <option value="">Sin empresas activas</option>}
             </select>
           </div>
         </div>
         <span className="nav-label">ESPACIO DE TRABAJO</span>
         <nav>
-          {nav.map(([path, label, Icon], i) => (
+          {(org.id ? nav : []).map(([path, label, Icon], i) => (
             <React.Fragment key={path}>
               {i === 6 && (
                 <span className="nav-label nav-section">ORGANIZACIÓN</span>
@@ -171,6 +187,15 @@ function Shell() {
               </NavLink>
             </React.Fragment>
           ))}
+          {session.user.system_admin && (
+            <>
+              <span className="nav-label nav-section">SISTEMA</span>
+              <NavLink to="/system" onClick={() => setMenu(false)}>
+                <ShieldCheck size={18} />
+                <span>Administración maestra</span>
+              </NavLink>
+            </>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <ShieldCheck size={17} />
@@ -185,11 +210,13 @@ function Shell() {
           <div>
             <strong>{session.user.full_name}</strong>
             <small>
-              {org.role === "ORG_ADMIN"
-                ? "Administrador"
-                : org.role === "VIEWER"
-                  ? "Consulta"
-                  : "Gestor de activos"}
+              {session.user.system_admin
+                ? "Administrador maestro"
+                : org.role === "ORG_ADMIN"
+                  ? "Administrador"
+                  : org.role === "VIEWER"
+                    ? "Consulta"
+                    : "Gestor de activos"}
             </small>
           </div>
           <button
@@ -213,9 +240,11 @@ function Shell() {
           <span>
             Espacio de trabajo <ChevronRight size={13} />{" "}
             <strong>
-              {nav.find(
-                ([p]) => p !== "/" && location.pathname.startsWith(p),
-              )?.[1] || "Dashboard"}
+              {location.pathname.startsWith("/system")
+                ? "Administración maestra"
+                : nav.find(
+                    ([p]) => p !== "/" && location.pathname.startsWith(p),
+                  )?.[1] || "Dashboard"}
             </strong>
           </span>
           <div>
@@ -235,7 +264,13 @@ function Shell() {
         <main className="main-content">
           {error ? <ErrorBox error={error} /> : null}
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route
+              path="/"
+              element={
+                org.id ? <Dashboard /> : <Navigate to="/system" replace />
+              }
+            />
+            <Route path="/system" element={<SystemAdmin />} />
             <Route path="/assets" element={<Inventory />} />
             <Route path="/hardware" element={<Inventory kind="HARDWARE" />} />
             <Route path="/digital" element={<Inventory kind="DIGITAL" />} />

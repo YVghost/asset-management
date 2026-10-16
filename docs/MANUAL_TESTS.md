@@ -61,6 +61,8 @@ Ejecutar después de `docker compose up --build -d`, con datos de desarrollo hab
 
 ## Prueba de navegador automatizada
 
+Para administración maestra, definir `AMS_MASTER_E2E_EMAIL`, `AMS_MASTER_E2E_PASSWORD` y `AMS_E2E_URL=http://localhost:3000`, y ejecutar `npx playwright test system-admin.spec.ts`. Comprueba creación de empresa y cuenta, autorización por empresa y rechazo de acceso global para cuentas normales. Los registros de prueba quedan desactivados al finalizar. Las credenciales de la cuenta maestra se consultan en `.env`; no deben versionarse ni imprimirse.
+
 Con backend y Vite activos, una empresa demo y Chrome instalado:
 
 ```powershell

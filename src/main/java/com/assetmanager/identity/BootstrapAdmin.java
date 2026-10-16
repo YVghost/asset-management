@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@org.springframework.core.annotation.Order(0)
 @ConditionalOnProperty(name = "ams.bootstrap.enabled", havingValue = "true")
 public class BootstrapAdmin implements CommandLineRunner {
   private final JdbcTemplate db;

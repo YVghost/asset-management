@@ -42,10 +42,7 @@ public class OrganizationController {
 
   @GetMapping
   public List<Map<String, Object>> list() {
-    return db.queryForList(
-        "select o.id,o.name,m.role from organizations o join organization_memberships m on"
-            + " m.organization_id=o.id where m.user_id=? and o.active=true",
-        access.userId());
+    return access.organizations();
   }
 
   @GetMapping("/{org}")

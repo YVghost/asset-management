@@ -2,6 +2,8 @@
 
 Entrega local: 16 de octubre de 2026. Se conservó el backend Maven existente en la raíz y se añadió `frontend/`. No existían funcionalidades de negocio, migraciones o datos que preservar.
 
+Actualización de administración maestra: cuenta global independiente aprovisionada desde variables `MASTER_*`, panel `/system`, CRUD administrativo de empresas y cuentas, suspensión/reactivación, cambios de contraseña y asignación/revocación de membresías. Las 21 pruebas backend se ejecutaron contra PostgreSQL 17.6 en Testcontainers y pasaron sin omisiones. Las 12 pruebas frontend y la compilación pasaron. El recorrido Chrome del panel maestro verificó creación de empresa y usuario, asignación de acceso y rechazo 403 del panel global para una cuenta normal, que solo ve su empresa. Las imágenes se reconstruyeron y los tres servicios Docker quedaron saludables. Los registros creados por la prueba de administración se desactivaron al finalizar. No hubo cambios de esquema ni eliminación de inventarios.
+
 ## Implementado
 
 - Monolito Spring Boot 4.1.1/Java 21 y frontend React/TypeScript integrados mediante API versionada.
@@ -27,7 +29,7 @@ Entrega local: 16 de octubre de 2026. Se conservó el backend Maven existente en
 | Comprobación | Resultado |
 | --- | --- |
 | Compilación y empaquetado Maven | Correctos; JAR ejecutable generado |
-| Pruebas backend | 18 aprobadas: 7 unitarias y 11 de integración, sin omisiones |
+| Pruebas backend | 21 aprobadas: 7 unitarias y 14 de integración, sin omisiones |
 | Migración V1 | Ejecutada correctamente sobre PostgreSQL temporal |
 | Hibernate `ddl-auto=validate` | Correcto contra esquema migrado |
 | PostgreSQL real | Pruebas de claves, códigos, persistencia, costos y operaciones transaccionales |
@@ -60,7 +62,7 @@ No se realizó despliegue externo ni se ejecutaron migraciones contra una base d
 - Vida útil: `residual_value` preparado; sin política de depreciación contable. No hay importación CSV, PDFs complejos, QR, códigos de barras, compras ni adjuntos.
 - Padre/hijo: disponible por API; falta selector y visualización de árbol en la interfaz.
 - Especificaciones: el modelo JSONB admite campos adicionales por API; la interfaz presenta los campos técnicos iniciales. No hay todavía diseñador de campos dinámicos por categoría.
-- Organizaciones: creación/edición mediante API para cuentas autorizadas y selector de empresas en la interfaz. Falta una pantalla de administración global. El alta de usuarios y la modificación de su rol en una empresa usan el formulario de autorización; faltan recuperación/autocambio de contraseña, MFA, suspensión global y revocación masiva de sesiones.
+- Administración global implementada: cuenta maestra independiente, panel de organizaciones y usuarios, activación/suspensión, restablecimiento de contraseñas y membresías por empresa. Las cuentas maestras tienen acceso a todas las organizaciones activas; las normales mantienen el aislamiento. Faltan recuperación/autocambio de contraseña, MFA y revocación masiva de sesiones. Ver `docs/MASTER_ADMIN.md`.
 - Catálogos y empleados: paginación y búsqueda con orden alfabético fijo; la selección de orden está disponible en el inventario.
 - Auditoría: conserva cambios relevantes de activos y movimientos; ampliar a todos los campos especializados y catálogos para políticas de auditoría más exigentes.
 - Reportes: vistas filtradas y CSV; la exportación completa se prepara en memoria y conviene migrarla a streaming para inventarios grandes.

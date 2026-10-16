@@ -57,6 +57,7 @@ class InventoryIntegrationTest {
   @Autowired AssetService assets;
   @Autowired AssignmentService assignments;
   @Autowired AccessService access;
+  @Autowired com.assetmanager.identity.SystemAdminService system;
   @Autowired JdbcTemplate db;
   @Autowired CatalogService catalogs;
   @Autowired org.springframework.security.crypto.password.PasswordEncoder passwords;
@@ -113,6 +114,115 @@ class InventoryIntegrationTest {
     SecurityContextHolder.getContext()
         .setAuthentication(
             UsernamePasswordAuthenticationToken.authenticated(email, null, List.of()));
+  }
+
+  @Test
+  void masterManagesAllOrganizationsWithoutMemberships() {
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> system.organizations("", 0, 20));
+    db.update("update app_users set system_admin=true where id=?", user);
+    assertEquals("ORG_ADMIN", access.role(other));
+    assertTrue(access.organizations().stream().anyMatch(o -> o.get("id").equals(other)));
+    var created =
+        system.organization(
+            null,
+            new com.assetmanager.identity.SystemAdminService.OrganizationInput(
+                "Master test", null, null, true));
+    UUID createdId = (UUID) created.get("id");
+    assertEquals("ORG_ADMIN", access.role(createdId));
+    system.organization(
+        createdId,
+        new com.assetmanager.identity.SystemAdminService.OrganizationInput(
+            "Master edited", null, "RUC", false));
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> access.role(createdId));
+    assertTrue(((List<?>) system.organizations("Master edited", 0, 20).get("content")).size() > 0);
+    system.organization(
+        createdId,
+        new com.assetmanager.identity.SystemAdminService.OrganizationInput(
+            "Master edited", null, "RUC", true));
+    assertEquals("ORG_ADMIN", access.role(createdId));
+  }
+
+  @Test
+  void masterControlsUsersPasswordsAndMembershipsWhileTenantsStayIsolated() {
+    db.update("update app_users set system_admin=true where id=?", user);
+    String accountEmail = "managed-" + UUID.randomUUID() + "@test.local";
+    var managed =
+        system.user(
+            null,
+            new com.assetmanager.identity.SystemAdminService.UserInput(
+                accountEmail, "Managed User", "Original-Password-123", true, false));
+    UUID managedId = (UUID) managed.get("id");
+    system.membership(
+        managedId,
+        new com.assetmanager.identity.SystemAdminService.MembershipInput(other, "VIEWER"));
+    assertEquals(1, system.memberships(managedId).size());
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            UsernamePasswordAuthenticationToken.authenticated(accountEmail, null, List.of()));
+    assertEquals("VIEWER", access.role(other));
+    assertEquals(1, access.organizations().size());
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> access.role(org));
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> system.users("", 0, 20));
+    authenticate();
+    system.user(
+        managedId,
+        new com.assetmanager.identity.SystemAdminService.UserInput(
+            accountEmail, "Edited User", "Updated-Password-123", true, false));
+    assertTrue(
+        passwords.matches(
+            "Updated-Password-123",
+            db.queryForObject(
+                "select password_hash from app_users where id=?", String.class, managedId)));
+    system.revoke(managedId, other);
+    assertTrue(system.memberships(managedId).isEmpty());
+    system.user(
+        managedId,
+        new com.assetmanager.identity.SystemAdminService.UserInput(
+            accountEmail, "Edited User", null, false, false));
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            UsernamePasswordAuthenticationToken.authenticated(accountEmail, null, List.of()));
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> access.user());
+    authenticate();
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () ->
+            system.user(
+                user,
+                new com.assetmanager.identity.SystemAdminService.UserInput(
+                    email, "Self", null, false, true)));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () ->
+            system.user(
+                user,
+                new com.assetmanager.identity.SystemAdminService.UserInput(
+                    email, "Self", null, true, false)));
+  }
+
+  @Test
+  void masterProvisioningIsIdempotentAndDoesNotPromoteAnExistingOrdinaryUser() {
+    var runner =
+        new com.assetmanager.identity.MasterAccount(db, passwords, email, "Initial-Password-123");
+    assertThrows(IllegalStateException.class, () -> runner.run());
+    String masterEmail = "master-" + UUID.randomUUID() + "@test.local";
+    var master =
+        new com.assetmanager.identity.MasterAccount(
+            db, passwords, masterEmail, "Initial-Password-123");
+    master.run();
+    new com.assetmanager.identity.MasterAccount(db, passwords, masterEmail, "Changed-Password-123")
+        .run();
+    assertEquals(
+        1L,
+        db.queryForObject(
+            "select count(*) from app_users where email=? and system_admin=true",
+            Long.class,
+            masterEmail));
+    assertTrue(
+        passwords.matches(
+            "Initial-Password-123",
+            db.queryForObject(
+                "select password_hash from app_users where email=?", String.class, masterEmail)));
   }
 
   @AfterEach
