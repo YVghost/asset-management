@@ -1,0 +1,11 @@
+# Uso: docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+services:
+  db:
+    ports: !reset []
+  backend:
+    ports: !reset []
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DEMO_ENABLED: "false"
+      COOKIE_SECURE: "true"
+      API_DOCS_ENABLED: "false"
