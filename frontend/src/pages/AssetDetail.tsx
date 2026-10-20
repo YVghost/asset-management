@@ -9,6 +9,7 @@ import {
   Undo2,
   Monitor,
   Cloud,
+  QrCode,
 } from "lucide-react";
 import { api, orgPath, allPages } from "../services/api";
 import { useSession, useCanWrite } from "../hooks/session";
@@ -57,6 +58,10 @@ export function AssetDetail() {
             {a.asset_kind === "HARDWARE" ? "Hardware" : "Activo digital"}
           </p>
         </div>
+        <Link className="button secondary" to={"/labels?ids=" + id}>
+          <QrCode size={18} />
+          Etiqueta QR
+        </Link>
         {write && (
           <Link className="button secondary" to={`/assets/${id}/edit`}>
             <Pencil size={16} />
@@ -202,6 +207,15 @@ export function AssetDetail() {
           <section className="panel detail-panel">
             <span className="eyebrow">RESPONSABLE ACTUAL</span>
             <h2>{a.assigned_employee || "Sin asignar"}</h2>
+            {a.current_assigned_at && (
+              <p className="muted">
+                Entrega: {date(a.current_assigned_at)}
+                {a.current_expected_return_at
+                  ? " · Devolución prevista: " +
+                    date(a.current_expected_return_at)
+                  : ""}
+              </p>
+            )}
             <p className="muted">
               {a.employee_code ||
                 "El activo pertenece al inventario de la empresa."}

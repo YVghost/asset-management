@@ -77,19 +77,54 @@ public class CatalogService {
 
   public Map<String, Object> list(
       UUID org, String type, String search, int page, int size, boolean activeOnly) {
+    return list(org, type, search, page, size, activeOnly, "ALL");
+  }
+
+  public Map<String, Object> list(
+      UUID org, String type, String search, int page, int size, boolean activeOnly, String state) {
     access.role(org);
+    if (!Set.of("ALL", "ACTIVE", "INACTIVE").contains(state))
+      throw ApiException.invalid("Estado de filtro no válido");
     String table = table(type);
     page = Math.max(0, page);
     size = Math.min(100, Math.max(1, size));
     String where =
-        " where organization_id=? and name ilike ?" + (activeOnly ? " and active=true" : "");
+        " where organization_id=? and name ilike ?"
+            + (activeOnly || state.equals("ACTIVE")
+                ? " and active=true"
+                : state.equals("INACTIVE") ? " and active=false" : "");
+    String related = "";
+    if (type.equals("departments") || type.equals("locations")) {
+      String column = type.equals("departments") ? "department_id" : "location_id";
+      related =
+          ",(select count(*) from assets a where a.organization_id="
+              + table
+              + ".organization_id and a."
+              + column
+              + "="
+              + table
+              + ".id) asset_count,(select count(*) from employees e where e.organization_id="
+              + table
+              + ".organization_id and e."
+              + column
+              + "="
+              + table
+              + ".id) employee_count";
+    }
     long total =
         db.queryForObject(
             "select count(*) from " + table + where, Long.class, org, "%" + search + "%");
     return Map.of(
         "content",
         db.queryForList(
-            "select * from " + table + where + " order by name,id limit ? offset ?",
+            "select "
+                + table
+                + ".*"
+                + related
+                + " from "
+                + table
+                + where
+                + " order by name,id limit ? offset ?",
             org,
             "%" + search + "%",
             size,
@@ -105,6 +140,7 @@ public class CatalogService {
   @Transactional
   public Map<String, Object> save(UUID org, String type, UUID id, Input in) {
     access.write(org);
+    String name = in.name().trim();
     String table = table(type);
     boolean create = id == null;
     if (create) id = UUID.randomUUID();
@@ -136,12 +172,12 @@ public class CatalogService {
               + (type.equals("categories") ? ",?" : "")
               + ")",
           type.equals("categories")
-              ? new Object[] {id, org, in.name(), in.active(), in.assetKind()}
-              : new Object[] {id, org, in.name(), in.active()});
+              ? new Object[] {id, org, name, in.active(), in.assetKind()}
+              : new Object[] {id, org, name, in.active()});
     else
       db.update(
           "update " + table + " set name=?,active=? where organization_id=? and id=?",
-          in.name(),
+          name,
           in.active(),
           org,
           id);
@@ -219,8 +255,18 @@ public class CatalogService {
   @Transactional
   public Map<String, Object> saveEmployee(UUID org, UUID id, EmployeeInput in) {
     access.write(org);
-    assets.reference(org, "departments", in.departmentId());
-    assets.reference(org, "locations", in.locationId());
+    Map<String, Object> previous = Map.of();
+    if (id != null) {
+      var rows =
+          db.queryForList(
+              "select department_id,location_id from employees where organization_id=? and id=?",
+              org,
+              id);
+      if (rows.isEmpty()) throw ApiException.missing();
+      previous = rows.getFirst();
+    }
+    assets.reference(org, "departments", in.departmentId(), (UUID) previous.get("department_id"));
+    assets.reference(org, "locations", in.locationId(), (UUID) previous.get("location_id"));
     if (!in.active()
         && id != null
         && db.queryForObject(

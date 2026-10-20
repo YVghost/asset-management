@@ -58,6 +58,11 @@ public class AssetService {
           "La referencia seleccionada no pertenece a la empresa o está inactiva");
   }
 
+  public void reference(UUID org, String table, UUID id, UUID retained) {
+    if (id != null && id.equals(retained)) return;
+    reference(org, table, id);
+  }
+
   @Transactional
   public Map<String, Object> save(UUID org, UUID id, AssetInput in, String kind) {
     access.write(org);
@@ -65,11 +70,14 @@ public class AssetService {
     // cycle.
     db.queryForObject(
         "select pg_advisory_xact_lock(hashtextextended(?::text,0))", Object.class, org.toString());
+    Asset previous = id == null ? null : locked(org, id);
     if (!in.assetKind().equals(kind)) throw ApiException.invalid("Tipo de activo incorrecto");
-    reference(org, "asset_categories", in.categoryId());
-    reference(org, "locations", in.locationId());
-    reference(org, "departments", in.departmentId());
-    reference(org, "suppliers", in.supplierId());
+    reference(
+        org, "asset_categories", in.categoryId(), previous == null ? null : previous.categoryId);
+    reference(org, "locations", in.locationId(), previous == null ? null : previous.locationId);
+    reference(
+        org, "departments", in.departmentId(), previous == null ? null : previous.departmentId);
+    reference(org, "suppliers", in.supplierId(), previous == null ? null : previous.supplierId);
     String categoryKind =
         db.queryForObject(
             "select asset_kind from asset_categories where id=? and organization_id=?",
@@ -93,7 +101,7 @@ public class AssetService {
       }
     }
     boolean create = id == null;
-    Asset a = create ? new Asset() : locked(org, id);
+    Asset a = create ? new Asset() : previous;
     if (!create && !a.assetKind.equals(kind))
       throw ApiException.invalid("No puedes cambiar el tipo del activo");
     Map<String, Object> before = create ? Map.of() : snapshot(a);
@@ -216,14 +224,15 @@ public class AssetService {
           + " coalesce(nullif(concat_ws(' ',e.first_name,e.last_name),''),concat_ws('"
           + " ',responsible.first_name,responsible.last_name))"
           + " assigned_employee,coalesce(e.employee_code,responsible.employee_code)"
-          + " employee_code,coalesce(aa.employee_id,dd.responsible_employee_id) employee_id from"
-          + " assets a join asset_categories c on c.id=a.category_id left join locations l on"
-          + " l.id=a.location_id left join departments d on d.id=a.department_id left join"
-          + " suppliers s on s.id=a.supplier_id left join hardware_asset_details h on"
-          + " h.asset_id=a.id left join asset_assignments aa on aa.asset_id=a.id and aa.returned_at"
-          + " is null left join employees e on e.id=aa.employee_id left join digital_asset_details"
-          + " dd on dd.asset_id=a.id left join employees responsible on"
-          + " responsible.id=dd.responsible_employee_id";
+          + " employee_code,coalesce(aa.employee_id,dd.responsible_employee_id)"
+          + " employee_id,aa.assigned_at current_assigned_at,aa.expected_return_at"
+          + " current_expected_return_at from assets a join asset_categories c on"
+          + " c.id=a.category_id left join locations l on l.id=a.location_id left join departments"
+          + " d on d.id=a.department_id left join suppliers s on s.id=a.supplier_id left join"
+          + " hardware_asset_details h on h.asset_id=a.id left join asset_assignments aa on"
+          + " aa.asset_id=a.id and aa.returned_at is null left join employees e on"
+          + " e.id=aa.employee_id left join digital_asset_details dd on dd.asset_id=a.id left join"
+          + " employees responsible on responsible.id=dd.responsible_employee_id";
 
   public record Filter(
       String search,
@@ -234,7 +243,76 @@ public class AssetService {
       UUID departmentId,
       UUID locationId,
       String lifecycle,
-      String expiry) {}
+      String expiry,
+      String brand,
+      String model,
+      String person,
+      @jakarta.validation.constraints.Pattern(regexp = "CURRENT|HISTORY|ANY") String personScope,
+      @jakarta.validation.constraints.Pattern(regexp = "ASSIGNED|UNASSIGNED")
+          String assignmentState,
+      UUID supplierId,
+      @jakarta.validation.constraints.Pattern(
+              regexp = "ACQUISITION|ASSIGNED|RETURNED|WARRANTY|EXPIRATION")
+          String dateField,
+      @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate from,
+      @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate to) {
+    public Filter(
+        String search,
+        String kind,
+        String status,
+        UUID categoryId,
+        UUID employeeId,
+        UUID departmentId,
+        UUID locationId,
+        String lifecycle,
+        String expiry) {
+      this(
+          search,
+          kind,
+          status,
+          categoryId,
+          employeeId,
+          departmentId,
+          locationId,
+          lifecycle,
+          expiry,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null);
+    }
+
+    public Filter withKind(String kind) {
+      return new Filter(
+          search,
+          kind,
+          status,
+          categoryId,
+          employeeId,
+          departmentId,
+          locationId,
+          lifecycle,
+          expiry,
+          brand,
+          model,
+          person,
+          personScope,
+          assignmentState,
+          supplierId,
+          dateField,
+          from,
+          to);
+    }
+  }
 
   public record Query(String where, List<Object> args) {}
 
@@ -244,19 +322,21 @@ public class AssetService {
     List<Object> args = new ArrayList<>();
     args.add(org);
     if (f.search() != null && !f.search().isBlank()) {
-      w.append(" and (a.name ilike ? or a.asset_code ilike ? or h.serial_number ilike ?)");
-      for (int i = 0; i < 3; i++) args.add("%" + f.search() + "%");
+      w.append(
+          " and (a.name ilike ? or a.asset_code ilike ? or h.serial_number ilike ? or h.brand ilike"
+              + " ? or h.model ilike ? or dd.product ilike ?)");
+      for (int i = 0; i < 6; i++) args.add("%" + f.search() + "%");
     }
     String[] cols = {
       "a.asset_kind",
       "a.status",
       "a.category_id",
-      "coalesce(aa.employee_id,dd.responsible_employee_id)",
+      "a.supplier_id",
       "a.department_id",
       "a.location_id"
     };
     Object[] vals = {
-      f.kind(), f.status(), f.categoryId(), f.employeeId(), f.departmentId(), f.locationId()
+      f.kind(), f.status(), f.categoryId(), f.supplierId(), f.departmentId(), f.locationId()
     };
     for (int i = 0; i < cols.length; i++)
       if (vals[i] != null && !vals[i].toString().isBlank()) {
@@ -280,7 +360,105 @@ public class AssetService {
               + " dd.expiration_date between current_date and current_date+30)");
     if ("WARRANTY".equals(f.expiry()))
       w.append(" and h.warranty_end_date between current_date and current_date+30");
+    if ("CURRENT".equals(f.lifecycle()))
+      w.append(
+          " and (a.in_service_date+make_interval(months=>a.useful_life_months))::date >"
+              + " (current_date+make_interval(months=>"
+              + alertMonths
+              + "))::date");
+    if ("NOT_CALCULABLE".equals(f.lifecycle()))
+      w.append(" and (a.in_service_date is null or a.useful_life_months is null)");
+    if (f.brand() != null && !f.brand().isBlank()) {
+      w.append(" and h.brand ilike ?");
+      args.add("%" + f.brand() + "%");
+    }
+    if (f.model() != null && !f.model().isBlank()) {
+      w.append(" and h.model ilike ?");
+      args.add("%" + f.model() + "%");
+    }
+    if ("UNASSIGNED".equals(f.assignmentState()))
+      w.append(" and coalesce(aa.employee_id,dd.responsible_employee_id) is null");
+    if ("ASSIGNED".equals(f.assignmentState()))
+      w.append(" and coalesce(aa.employee_id,dd.responsible_employee_id) is not null");
+    if (f.from() != null && f.to() != null && f.from().isAfter(f.to()))
+      throw ApiException.invalid("La fecha inicial debe ser anterior a la final");
+    boolean person = f.employeeId() != null || f.person() != null && !f.person().isBlank();
+    boolean assignmentDate =
+        (f.from() != null || f.to() != null)
+            && Set.of("ASSIGNED", "RETURNED").contains(f.dateField() == null ? "" : f.dateField());
+    String scope = f.personScope() == null ? "CURRENT" : f.personScope();
+    if ((person && !scope.equals("CURRENT")) || assignmentDate) {
+      w.append(
+          " and exists(select 1 from asset_assignments ha join employees he on he.id=ha.employee_id"
+              + " where ha.asset_id=a.id and ha.organization_id=a.organization_id");
+      if (scope.equals("CURRENT")) w.append(" and ha.returned_at is null");
+      if (scope.equals("HISTORY")) w.append(" and ha.returned_at is not null");
+      if (f.employeeId() != null) {
+        w.append(" and ha.employee_id=?");
+        args.add(f.employeeId());
+      }
+      if (f.person() != null && !f.person().isBlank()) {
+        w.append(" and concat_ws(' ',he.first_name,he.last_name,he.employee_code) ilike ?");
+        args.add("%" + f.person() + "%");
+      }
+      if (assignmentDate)
+        dateRange(
+            w,
+            args,
+            "ha." + ("RETURNED".equals(f.dateField()) ? "returned_at" : "assigned_at"),
+            f.from(),
+            f.to(),
+            true);
+      w.append(")");
+    } else if (person) {
+      if (f.employeeId() != null) {
+        w.append(" and coalesce(aa.employee_id,dd.responsible_employee_id)=?");
+        args.add(f.employeeId());
+      }
+      if (f.person() != null && !f.person().isBlank()) {
+        w.append(
+            " and concat_ws('"
+                + " ',e.first_name,e.last_name,e.employee_code,responsible.first_name,responsible.last_name,responsible.employee_code)"
+                + " ilike ?");
+        args.add("%" + f.person() + "%");
+      }
+    }
+    if (!assignmentDate && (f.from() != null || f.to() != null))
+      dateRange(
+          w,
+          args,
+          switch (f.dateField() == null ? "ACQUISITION" : f.dateField()) {
+            case "WARRANTY" -> "h.warranty_end_date";
+            case "EXPIRATION" -> "dd.expiration_date";
+            default -> "a.acquisition_date";
+          },
+          f.from(),
+          f.to(),
+          false);
     return new Query(w.toString(), args);
+  }
+
+  private static void dateRange(
+      StringBuilder sql,
+      List<Object> args,
+      String column,
+      LocalDate from,
+      LocalDate to,
+      boolean timestamp) {
+    if (from != null) {
+      sql.append(" and ").append(column).append(">=?");
+      args.add(
+          timestamp
+              ? java.sql.Timestamp.from(from.atStartOfDay(ZoneOffset.UTC).toInstant())
+              : from);
+    }
+    if (to != null) {
+      sql.append(" and ").append(column).append(timestamp ? "<?" : "<=?");
+      args.add(
+          timestamp
+              ? java.sql.Timestamp.from(to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant())
+              : to);
+    }
   }
 
   public Map<String, Object> list(

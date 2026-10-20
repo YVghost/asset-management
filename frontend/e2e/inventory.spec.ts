@@ -14,6 +14,16 @@ test("registro, edición, asignación, devolución y activo digital desde el nav
   await expect(
     page.getByRole("heading", { name: "Todo bajo control." }),
   ).toBeVisible();
+  const demo = page
+    .getByLabel("Organización activa")
+    .locator("option")
+    .filter({ hasText: "Empresa Demo IT" });
+  if (await demo.count()) {
+    await page
+      .getByLabel("Organización activa")
+      .selectOption({ label: "Empresa Demo IT" });
+    await page.goto("/");
+  }
   await page.getByRole("link", { name: "Registrar activo" }).click();
   await page.getByLabel("Código de inventario *").fill(code);
   await page

@@ -46,10 +46,12 @@ public class SystemAdminService {
     return Map.of(
         "content",
         db.queryForList(
-            "select o.*,(select count(*) from organization_memberships m where"
-                + " m.organization_id=o.id) user_count,(select count(*) from assets a where"
-                + " a.organization_id=o.id) asset_count from organizations o where name ilike ?"
-                + " order by name,id limit ? offset ?",
+            "select"
+                + " o.id,o.name,o.legal_name,o.tax_id,o.active,o.created_at,o.theme_key,o.branding_version,(select"
+                + " count(*) from organization_memberships m where m.organization_id=o.id)"
+                + " user_count,(select count(*) from assets a where a.organization_id=o.id)"
+                + " asset_count from organizations o where name ilike ? order by name,id limit ?"
+                + " offset ?",
             term,
             size,
             page * size),
@@ -78,7 +80,10 @@ public class SystemAdminService {
             in.active(),
             id)
         == 0) throw ApiException.missing();
-    return db.queryForMap("select * from organizations where id=?", id);
+    return db.queryForMap(
+        "select id,name,legal_name,tax_id,active,created_at,theme_key,branding_version from"
+            + " organizations where id=?",
+        id);
   }
 
   public Map<String, Object> users(String search, int page, int size) {

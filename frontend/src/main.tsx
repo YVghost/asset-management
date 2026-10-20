@@ -42,8 +42,11 @@ import { AssetForm } from "./pages/AssetForm";
 import { AssetDetail } from "./pages/AssetDetail";
 import { Catalog, EmployeeDetail } from "./pages/Catalogs";
 import { SystemAdmin } from "./pages/SystemAdmin";
+import { useOrganizationBrand } from "./branding";
+import { TrackingRedirect, LabelPage } from "./pages/Tracking";
 import type { Session } from "./types";
 import "./styles.css";
+import "./design.css";
 const client = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
@@ -54,7 +57,7 @@ const nav = [
   ["/digital", "Activos digitales", Cloud],
   ["/employees", "Empleados", Users],
   ["/assignments", "Asignaciones", ArrowRightLeft],
-  ["/departments", "Departamentos", Building2],
+  ["/departments", "Áreas", Building2],
   ["/locations", "Ubicaciones", MapPin],
   ["/suppliers", "Proveedores", Truck],
   ["/reports", "Reportes", ChartNoAxesCombined],
@@ -140,10 +143,25 @@ function Shell() {
     location = useLocation();
   const [menu, setMenu] = useState(false),
     [error, setError] = useState<unknown>();
+  const {
+    brand,
+    theme,
+    error: brandError,
+  } = useOrganizationBrand(org.id, location.pathname.startsWith("/system"));
   return (
     <div className="app-shell">
       <aside className={"sidebar " + (menu ? "open" : "")}>
-        <LinkBrand />
+        {theme.logo ? (
+          <a href="/" className="organization-brand">
+            <img src={theme.logo} alt={brand?.name || org.name} />
+            <span>
+              {org.name}
+              <small>GESTIÓN DE ACTIVOS IT</small>
+            </span>
+          </a>
+        ) : (
+          <LinkBrand />
+        )}
         <div className="workspace-selector">
           <span className="workspace-icon">
             <Building2 size={19} />
@@ -263,6 +281,7 @@ function Shell() {
         </header>
         <main className="main-content">
           {error ? <ErrorBox error={error} /> : null}
+          {brandError ? <ErrorBox error={brandError} /> : null}
           <Routes>
             <Route
               path="/"
@@ -271,6 +290,8 @@ function Shell() {
               }
             />
             <Route path="/system" element={<SystemAdmin />} />
+            <Route path="/a/:trackingId" element={<TrackingRedirect />} />
+            <Route path="/labels" element={<LabelPage />} />
             <Route path="/assets" element={<Inventory />} />
             <Route path="/hardware" element={<Inventory kind="HARDWARE" />} />
             <Route path="/digital" element={<Inventory kind="DIGITAL" />} />
@@ -286,7 +307,7 @@ function Shell() {
               "suppliers",
               "categories",
             ].map((t) => (
-              <Route key={t} path={"/" + t} element={<Catalog type={t} />} />
+              <Route key={t} path={"/" + t} element={<Catalog key={t} type={t} />} />
             ))}
             <Route path="/employees/:id" element={<EmployeeDetail />} />
             <Route path="/settings" element={<SettingsPage />} />

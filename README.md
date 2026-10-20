@@ -1,5 +1,9 @@
 # AMS · Asset Management System
 
+Las empresas pueden crear, renombrar, desactivar y reactivar sus propias áreas y ubicaciones desde el menú lateral. Consulta [docs/AREAS_LOCATIONS.md](docs/AREAS_LOCATIONS.md).
+
+La actualización de temas por organización, filtros históricos y etiquetas QR está documentada en [docs/BRANDING_FILTERS_QR.md](docs/BRANDING_FILTERS_QR.md). Edinun tiene una organización y un tema propios; las demás empresas conservan su identidad genérica o personalizada.
+
 MVP de inventario de tecnología para varias empresas: hardware, licencias y servicios digitales, empleados, entregas, devoluciones, transferencias, vida útil, alertas, auditoría y exportación CSV. La interfaz está en español y utiliza la API y PostgreSQL para todas las operaciones.
 
 ## Inicio local

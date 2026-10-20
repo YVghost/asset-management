@@ -43,7 +43,7 @@ export async function api<T = any>(
 }
 export const orgPath = (org: string, path: string) =>
   `/organizations/${org}${path}`;
-export async function allPages(org: string, path: string) {
+export async function allPages(org: string, path: string, activeOnly = true) {
   let page = 0;
   let rows: any[] = [];
   let total = 0;
@@ -51,7 +51,7 @@ export async function allPages(org: string, path: string) {
     const result = await api(
       orgPath(
         org,
-        `${path}${path.includes("?") ? "&" : "?"}size=100&page=${page}&activeOnly=true`,
+        `${path}${path.includes("?") ? "&" : "?"}size=100&page=${page}&activeOnly=${activeOnly}`,
       ),
     );
     rows = rows.concat(result.content);
@@ -59,4 +59,24 @@ export async function allPages(org: string, path: string) {
     page++;
   } while (rows.length < total);
   return rows;
+}
+export async function upload(path: string, file: File) {
+  if (!csrf) await refreshCsrf();
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch("/api/v1" + path, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { [csrf!.headerName]: csrf!.token },
+    body,
+  });
+  if (!res.ok) {
+    const error = await res
+      .json()
+      .catch(() => ({ message: "No se pudo cargar la imagen" }));
+    throw new ApiError(
+      error.message || "No se pudo cargar la imagen",
+      res.status,
+    );
+  }
 }

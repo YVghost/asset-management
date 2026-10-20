@@ -20,6 +20,7 @@ import {
   Confirm,
 } from "../components/ui";
 import type { Row, Page } from "../types";
+import { BrandingEditor } from "../components/BrandingEditor";
 
 const roles: Record<string, string> = {
   ORG_ADMIN: "Administrador de empresa",
@@ -44,6 +45,7 @@ function SystemWorkspace() {
     [page, setPage] = useState(0),
     [edit, setEdit] = useState<Row | null>(null),
     [member, setMember] = useState<Row | null>(null);
+  const [branding, setBranding] = useState<Row | null>(null);
   const client = useQueryClient();
   const q = useQuery({
     queryKey: ["system", tab, search, page],
@@ -194,28 +196,36 @@ function SystemWorkspace() {
                             Empresas y permisos
                           </button>
                         ) : (
-                          <Confirm
-                            label={r.active ? "Desactivar" : "Activar"}
-                            danger={r.active}
-                            description={
-                              r.active
-                                ? "Los usuarios de esta empresa perderán acceso a su inventario. Los datos se conservarán."
-                                : "La empresa volverá a estar disponible para sus usuarios autorizados."
-                            }
-                            onConfirm={async () => {
-                              await api(
-                                `/system/organizations/${r.id}`,
-                                "PUT",
-                                {
-                                  name: r.name,
-                                  legalName: r.legal_name,
-                                  taxId: r.tax_id,
-                                  active: !r.active,
-                                },
-                              );
-                              await refresh();
-                            }}
-                          />
+                          <>
+                            <button
+                              className="button secondary"
+                              onClick={() => setBranding(r)}
+                            >
+                              Identidad visual
+                            </button>
+                            <Confirm
+                              label={r.active ? "Desactivar" : "Activar"}
+                              danger={r.active}
+                              description={
+                                r.active
+                                  ? "Los usuarios de esta empresa perderán acceso a su inventario. Los datos se conservarán."
+                                  : "La empresa volverá a estar disponible para sus usuarios autorizados."
+                              }
+                              onConfirm={async () => {
+                                await api(
+                                  `/system/organizations/${r.id}`,
+                                  "PUT",
+                                  {
+                                    name: r.name,
+                                    legalName: r.legal_name,
+                                    taxId: r.tax_id,
+                                    active: !r.active,
+                                  },
+                                );
+                                await refresh();
+                              }}
+                            />
+                          </>
                         )}
                       </div>
                     </td>
@@ -231,6 +241,9 @@ function SystemWorkspace() {
           setPage={setPage}
         />
       </section>
+      {branding && (
+        <BrandingEditor org={branding} onClose={() => setBranding(null)} />
+      )}
       {edit && (
         <SystemEditor type={tab} record={edit} onClose={() => setEdit(null)} />
       )}

@@ -12,11 +12,12 @@ import {
   Empty,
   Pagination,
   date,
+  Confirm,
 } from "../components/ui";
 import type { Row, Page } from "../types";
 const names: Record<string, string> = {
   employees: "Empleados",
-  departments: "Departamentos",
+  departments: "Áreas y departamentos",
   locations: "Ubicaciones",
   suppliers: "Proveedores",
   categories: "Categorías",
@@ -27,13 +28,17 @@ export function Catalog({ type }: { type: string }) {
   const [page, setPage] = useState(0),
     [search, setSearch] = useState(""),
     [edit, setEdit] = useState<Row | null>(null);
+  const [state, setState] = useState("ALL");
+  const related = type === "departments" || type === "locations",
+    client = useQueryClient();
+  const singular = type === "departments" ? "área" : "ubicación";
   const q = useQuery({
-    queryKey: [org.id, type, page, search],
+    queryKey: [org.id, type, page, search, state],
     queryFn: () =>
       api<Page>(
         orgPath(
           org.id,
-          `/${type}?page=${page}&search=${encodeURIComponent(search)}`,
+          `/${type}?page=${page}&search=${encodeURIComponent(search)}${related ? "&state=" + state : ""}`,
         ),
       ),
   });
@@ -46,13 +51,19 @@ export function Catalog({ type }: { type: string }) {
           <p>
             {type === "employees"
               ? "Personas, departamentos y activos bajo su responsabilidad."
-              : "Administra los registros de tu empresa y su disponibilidad."}
+              : related
+                ? "Crea y adapta los nombres a tu empresa. Desactiva los que ya no utilices sin perder sus relaciones ni su historial."
+                : "Administra los registros de tu empresa y su disponibilidad."}
           </p>
         </div>
         {write && (
           <button className="button" onClick={() => setEdit({})}>
             <Plus size={18} />
-            Agregar registro
+            {related
+              ? type === "departments"
+                ? "Nueva área"
+                : "Nueva ubicación"
+              : "Agregar registro"}
           </button>
         )}
       </div>
@@ -70,6 +81,22 @@ export function Catalog({ type }: { type: string }) {
               }}
             />
           </div>
+          {related && (
+            <label className="field">
+              Estado del registro
+              <select
+                value={state}
+                onChange={(e) => {
+                  setState(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <option value="ALL">Todos</option>
+                <option value="ACTIVE">Activos</option>
+                <option value="INACTIVE">Inactivos</option>
+              </select>
+            </label>
+          )}
         </div>
         {q.isPending ? (
           <Loading />
@@ -89,6 +116,7 @@ export function Catalog({ type }: { type: string }) {
                         : "INFORMACIÓN"}
                   </th>
                   {type === "employees" && <th>ACTIVOS</th>}
+                  {related && <th>RELACIONES</th>}
                   <th>ESTADO</th>
                   {write && <th>ACCIONES</th>}
                 </tr>
@@ -122,6 +150,11 @@ export function Catalog({ type }: { type: string }) {
                           : r.address || r.email || "—"}
                     </td>
                     {type === "employees" && <td>{r.assigned_count}</td>}
+                    {related && (
+                      <td>
+                        {r.asset_count} activos · {r.employee_count} personas
+                      </td>
+                    )}
                     <td>
                       <span
                         className={
@@ -133,13 +166,45 @@ export function Catalog({ type }: { type: string }) {
                     </td>
                     {write && (
                       <td>
-                        <button
-                          className="icon-button"
-                          aria-label="Editar registro"
-                          onClick={() => setEdit(r)}
-                        >
-                          <Pencil size={16} />
-                        </button>
+                        <div className="report-presets" style={{ margin: 0 }}>
+                          <button
+                            className={
+                              related ? "button secondary" : "icon-button"
+                            }
+                            aria-label={
+                              related ? "Editar " + r.name : "Editar registro"
+                            }
+                            onClick={() => setEdit(r)}
+                          >
+                            <Pencil size={16} />
+                            {related ? "Editar" : null}
+                          </button>
+                          {related && (
+                            <Confirm
+                              label={r.active ? "Desactivar" : "Reactivar"}
+                              danger={r.active}
+                              description={
+                                r.active
+                                  ? `Se desactivará ${singular} «${r.name}». Sus ${r.asset_count} activos y ${r.employee_count} personas conservarán sus vínculos. No aparecerá en nuevos registros y podrás reactivarla después.`
+                                  : `«${r.name}» volverá a estar disponible en los formularios de esta empresa.`
+                              }
+                              onConfirm={async () => {
+                                await api(
+                                  orgPath(org.id, `/${type}/${r.id}`),
+                                  r.active ? "DELETE" : "PUT",
+                                  r.active
+                                    ? undefined
+                                    : {
+                                        name: r.name,
+                                        address: r.address,
+                                        active: true,
+                                      },
+                                );
+                                await client.invalidateQueries();
+                              }}
+                            />
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -174,6 +239,7 @@ function CatalogModal({
   const { org } = useSession(),
     client = useQueryClient(),
     employee = type === "employees";
+  const related = type === "departments" || type === "locations";
   const [error, setError] = useState<unknown>(),
     [pending, setPending] = useState(false);
   const q = useQuery({
@@ -210,7 +276,12 @@ function CatalogModal({
   );
   return (
     <Modal
-      title={(r.id ? "Editar · " : "Nuevo · ") + names[type]}
+      title={
+        related
+          ? (r.id ? "Editar " : "Nueva ") +
+            (type === "departments" ? "área" : "ubicación")
+          : (r.id ? "Editar · " : "Nuevo · ") + names[type]
+      }
       onClose={() => !pending && onClose()}
     >
       <form
@@ -219,7 +290,9 @@ function CatalogModal({
           const data: Record<string, any> = Object.fromEntries(
             new FormData(e.currentTarget),
           );
-          data.active = data.active === ("on" as any);
+          data.active = related
+            ? (r.active ?? true)
+            : data.active === ("on" as any);
           for (const key of ["locationId", "departmentId", "hiredOn"])
             if (data[key] === "") data[key] = null as any;
           setPending(true);
@@ -261,6 +334,33 @@ function CatalogModal({
                     }
                   >
                     <option value="">Sin especificar</option>
+                    {r[t === "departments" ? "department_id" : "location_id"] &&
+                      !q.data?.[t as "departments" | "locations"].some(
+                        (x) =>
+                          x.id ===
+                          r[
+                            t === "departments"
+                              ? "department_id"
+                              : "location_id"
+                          ],
+                      ) && (
+                        <option
+                          value={
+                            r[
+                              t === "departments"
+                                ? "department_id"
+                                : "location_id"
+                            ]
+                          }
+                        >
+                          {r[
+                            t === "departments"
+                              ? "department_name"
+                              : "location_name"
+                          ] || "Registro actual"}{" "}
+                          (inactivo)
+                        </option>
+                      )}
                     {q.data?.[t as "departments" | "locations"].map((x) => (
                       <option value={x.id} key={x.id}>
                         {x.name}
@@ -272,7 +372,15 @@ function CatalogModal({
             </>
           ) : (
             <>
-              {input("name", "Nombre *", true)}
+              {input(
+                "name",
+                related
+                  ? type === "departments"
+                    ? "Nombre del área *"
+                    : "Nombre de la ubicación *"
+                  : "Nombre *",
+                true,
+              )}
               {type === "locations" && input("address", "Dirección")}
               {type === "suppliers" && (
                 <>
@@ -293,14 +401,16 @@ function CatalogModal({
               )}
             </>
           )}
-          <label className="checkbox">
-            <input
-              name="active"
-              type="checkbox"
-              defaultChecked={r.active ?? true}
-            />
-            Registro activo
-          </label>
+          {!related && (
+            <label className="checkbox">
+              <input
+                name="active"
+                type="checkbox"
+                defaultChecked={r.active ?? true}
+              />
+              Registro activo
+            </label>
+          )}
         </div>
         {error ? <ErrorBox error={error} /> : null}
         {q.error ? <ErrorBox error={q.error} /> : null}

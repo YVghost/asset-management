@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   Monitor,
   Cloud,
+  QrCode,
 } from "lucide-react";
 import { api, orgPath, allPages } from "../services/api";
 import { useSession, useCanWrite } from "../hooks/session";
@@ -35,6 +36,7 @@ export function Inventory({
   const [params, setParams] = useSearchParams();
   const [more, setMore] = useState(false),
     [downloadError, setDownloadError] = useState<unknown>();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const page = Number(params.get("page") || 0);
   const filters = new URLSearchParams(params);
   if (kind) filters.set("kind", kind);
@@ -44,7 +46,7 @@ export function Inventory({
     queryFn: () => api<Page>(orgPath(org.id, "/assets?" + filters)),
   });
   const lookups = useQuery({
-    queryKey: [org.id, "lookups"],
+    queryKey: [org.id, "filter-lookups"],
     queryFn: async () =>
       Object.fromEntries(
         await Promise.all(
@@ -54,7 +56,7 @@ export function Inventory({
             "departments",
             "locations",
             "suppliers",
-          ].map(async (t) => [t, await allPages(org.id, "/" + t)]),
+          ].map(async (t) => [t, await allPages(org.id, "/" + t, false)]),
         ),
       ),
   });
@@ -63,7 +65,68 @@ export function Inventory({
     if (value) next.set(key, value);
     else next.delete(key);
     if (key !== "page") next.delete("page");
+    if (key !== "page") setSelected(new Set());
     setParams(next);
+  }
+  const filterNames: Record<string, string> = {
+    search: "Activo",
+    status: "Estado",
+    kind: "Tipo",
+    categoryId: "Categoría",
+    employeeId: "Empleado",
+    departmentId: "Área",
+    locationId: "Ubicación",
+    supplierId: "Proveedor",
+    person: "Persona",
+    personScope: "Alcance",
+    brand: "Marca",
+    model: "Modelo",
+    assignmentState: "Responsable",
+    lifecycle: "Vida útil",
+    expiry: "Vencimiento",
+    dateField: "Fecha",
+    from: "Desde",
+    to: "Hasta",
+  };
+  function chipValue(key: string, value: string) {
+    const table: Record<string, string> = {
+      categoryId: "categories",
+      employeeId: "employees",
+      departmentId: "departments",
+      locationId: "locations",
+      supplierId: "suppliers",
+    };
+    const row = lookups.data?.[table[key]]?.find((r: Row) => r.id === value);
+    return row
+      ? row.name || `${row.first_name} ${row.last_name}`
+      : statuses[value] ||
+          (
+            {
+              CURRENT: "Actual",
+              HISTORY: "Anterior",
+              ANY: "Actual o anterior",
+              UNASSIGNED: "Sin responsable",
+              HARDWARE: "Hardware",
+              DIGITAL: "Digital",
+              ASSIGNED: "Con responsable",
+              EXPIRING: "Próxima a finalizar",
+              EXCEEDED: "Superada",
+              NOT_CALCULABLE: "Sin datos",
+              WARRANTY: "Garantía",
+              EXPIRATION: "Vencimiento digital",
+              ACQUISITION: "Compra",
+              RETURNED: "Devolución",
+            } as Record<string, string>
+          )[value] ||
+          value;
+  }
+  function select(id: string, checked: boolean) {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (checked && next.size < 100) next.add(id);
+      else if (!checked) next.delete(id);
+      return next;
+    });
   }
   return (
     <>
@@ -125,7 +188,7 @@ export function Inventory({
             <Search size={17} />
             <input
               aria-label="Buscar activos"
-              placeholder="Buscar por nombre, código o serie…"
+              placeholder="Nombre, código, serie, marca o modelo…"
               value={params.get("search") || ""}
               onChange={(e) => update("search", e.target.value)}
             />
@@ -191,6 +254,7 @@ export function Inventory({
                     <option value={r.id} key={r.id}>
                       {r.name ||
                         `${r.first_name} ${r.last_name} · ${r.employee_code}`}
+                      {r.active === false ? " (inactivo)" : ""}
                     </option>
                   ))}
                 </select>
@@ -203,9 +267,133 @@ export function Inventory({
                 onChange={(e) => update("lifecycle", e.target.value)}
               >
                 <option value="">Todos</option>
+                <option value="CURRENT">Vigente</option>
                 <option value="EXPIRING">Próximo a finalizar</option>
                 <option value="EXCEEDED">Vida útil superada</option>
+                <option value="NOT_CALCULABLE">
+                  Sin información suficiente
+                </option>
               </select>
+            </label>
+            {!kind && (
+              <label>
+                Tipo de activo
+                <select
+                  value={params.get("kind") || ""}
+                  onChange={(e) => update("kind", e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  <option value="HARDWARE">Hardware</option>
+                  <option value="DIGITAL">Digital</option>
+                </select>
+              </label>
+            )}
+            <label>
+              Buscar persona o código
+              <input
+                value={params.get("person") || ""}
+                placeholder="Nombre, apellido o código…"
+                onChange={(e) => update("person", e.target.value)}
+              />
+            </label>
+            <label>
+              Personas y movimientos
+              <select
+                value={params.get("personScope") || "CURRENT"}
+                onChange={(e) => update("personScope", e.target.value)}
+              >
+                <option value="CURRENT">Actualmente a cargo</option>
+                <option value="HISTORY">Tuvo asignado anteriormente</option>
+                <option value="ANY">Actual o anterior</option>
+              </select>
+            </label>
+            <label>
+              Asignación / responsable
+              <select
+                value={params.get("assignmentState") || ""}
+                onChange={(e) => update("assignmentState", e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="ASSIGNED">Con responsable</option>
+                <option value="UNASSIGNED">Sin responsable</option>
+              </select>
+            </label>
+            <label>
+              Marca
+              <input
+                value={params.get("brand") || ""}
+                onChange={(e) => update("brand", e.target.value)}
+              />
+            </label>
+            <label>
+              Modelo
+              <input
+                value={params.get("model") || ""}
+                onChange={(e) => update("model", e.target.value)}
+              />
+            </label>
+            <label>
+              Proveedor
+              <select
+                value={params.get("supplierId") || ""}
+                onChange={(e) => update("supplierId", e.target.value)}
+              >
+                <option value="">Todos</option>
+                {lookups.data?.suppliers?.map((r: Row) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Vencimientos próximos
+              <select
+                value={params.get("expiry") || ""}
+                onChange={(e) => update("expiry", e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="WARRANTY">Garantía · 30 días</option>
+                <option value="DIGITAL">Licencias · 30 días</option>
+              </select>
+            </label>
+            <label>
+              Campo de fecha
+              <select
+                value={params.get("dateField") || "ACQUISITION"}
+                onChange={(e) => {
+                  if (e.target.value === "RETURNED") {
+                    const next = new URLSearchParams(params);
+                    next.set("dateField", "RETURNED");
+                    next.set("personScope", "HISTORY");
+                    next.delete("page");
+                    setSelected(new Set());
+                    setParams(next);
+                  } else update("dateField", e.target.value);
+                }}
+              >
+                <option value="ACQUISITION">Adquisición</option>
+                <option value="ASSIGNED">Entrega</option>
+                <option value="RETURNED">Devolución</option>
+                <option value="WARRANTY">Fin de garantía</option>
+                <option value="EXPIRATION">Vencimiento digital</option>
+              </select>
+            </label>
+            <label>
+              Desde
+              <input
+                type="date"
+                value={params.get("from") || ""}
+                onChange={(e) => update("from", e.target.value)}
+              />
+            </label>
+            <label>
+              Hasta
+              <input
+                type="date"
+                value={params.get("to") || ""}
+                onChange={(e) => update("to", e.target.value)}
+              />
             </label>
             <label>
               Ordenar
@@ -229,9 +417,50 @@ export function Inventory({
                 <option value="asc">Ascendente</option>
               </select>
             </label>
-            <button className="text-link" onClick={() => setParams({})}>
+            <button
+              className="text-link"
+              onClick={() => {
+                setParams({});
+                setSelected(new Set());
+              }}
+            >
               Limpiar filtros
             </button>
+          </div>
+        )}
+        {[...params].some(([key]) => !!filterNames[key]) && (
+          <div className="filter-summary">
+            <strong>Filtros aplicados</strong>
+            {[...params]
+              .filter(([key]) => !!filterNames[key])
+              .map(([key, value]) => (
+                <button
+                  className="filter-chip"
+                  key={key}
+                  onClick={() => update(key, "")}
+                  aria-label={`Quitar filtro ${filterNames[key]}`}
+                >
+                  {filterNames[key]}: {chipValue(key, value)} ×
+                </button>
+              ))}
+          </div>
+        )}
+        {selected.size > 0 && (
+          <div className="selection-bar">
+            <strong>{selected.size} activos seleccionados</strong>
+            <button
+              className="text-link"
+              onClick={() => setSelected(new Set())}
+            >
+              Limpiar selección
+            </button>
+            <Link
+              className="button"
+              to={"/labels?ids=" + [...selected].join(",")}
+            >
+              <QrCode size={18} />
+              Generar etiquetas QR
+            </Link>
           </div>
         )}
         {downloadError ? <ErrorBox error={downloadError} /> : null}
@@ -245,6 +474,27 @@ export function Inventory({
             <table>
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar activos de esta página"
+                      checked={
+                        q.data.content.length > 0 &&
+                        q.data.content.every((a) => selected.has(a.id))
+                      }
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSelected((previous) => {
+                          const next = new Set(previous);
+                          for (const a of q.data.content) {
+                            if (checked && next.size < 100) next.add(a.id);
+                            else if (!checked) next.delete(a.id);
+                          }
+                          return next;
+                        });
+                      }}
+                    />
+                  </th>
                   <th>ACTIVO</th>
                   <th>CATEGORÍA</th>
                   <th>ESTADO</th>
@@ -260,6 +510,14 @@ export function Inventory({
               <tbody>
                 {q.data.content.map((a) => (
                   <tr key={a.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={"Seleccionar " + a.asset_code}
+                        checked={selected.has(a.id)}
+                        onChange={(e) => select(a.id, e.target.checked)}
+                      />
+                    </td>
                     <td>
                       <Link to={"/assets/" + a.id} className="asset-cell">
                         <span

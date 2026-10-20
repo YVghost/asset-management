@@ -22,7 +22,7 @@ public class AssetController {
   @GetMapping({"/assets", "/hardware-assets", "/digital-assets"})
   public Map<String, Object> list(
       @PathVariable UUID org,
-      @ModelAttribute AssetService.Filter filter,
+      @Valid @ModelAttribute AssetService.Filter filter,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size,
       @RequestParam(defaultValue = "createdAt") String sort,
@@ -32,22 +32,7 @@ public class AssetController {
         request.getRequestURI().endsWith("/hardware-assets")
             ? "HARDWARE"
             : request.getRequestURI().endsWith("/digital-assets") ? "DIGITAL" : filter.kind();
-    return assets.list(
-        org,
-        new AssetService.Filter(
-            filter.search(),
-            kind,
-            filter.status(),
-            filter.categoryId(),
-            filter.employeeId(),
-            filter.departmentId(),
-            filter.locationId(),
-            filter.lifecycle(),
-            filter.expiry()),
-        page,
-        size,
-        sort,
-        direction);
+    return assets.list(org, filter.withKind(kind), page, size, sort, direction);
   }
 
   @GetMapping({"/assets/{id}", "/hardware-assets/{id}", "/digital-assets/{id}"})
@@ -143,7 +128,7 @@ public class AssetController {
 
   @GetMapping("/assets/export")
   public ResponseEntity<byte[]> export(
-      @PathVariable UUID org, @ModelAttribute AssetService.Filter filter) {
+      @PathVariable UUID org, @Valid @ModelAttribute AssetService.Filter filter) {
     StringBuilder csv =
         new StringBuilder(
             "\uFEFFCódigo,Nombre,Tipo,Categoría,Estado,Responsable,Departamento,Ubicación,Fecha de"

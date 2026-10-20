@@ -124,6 +124,12 @@ function AssetEditor({
     <Field label={label} error={errors[name]?.message}>
       <select {...register(name)}>
         <option value="">Seleccionar…</option>
+        {initial && watch(name) && !rows.some((r) => r.id === watch(name)) && (
+          <option value={String(watch(name))}>
+            {initial[name.replace(/Id$/, "_name")] || "Registro actual"}{" "}
+            (inactivo)
+          </option>
+        )}
         {rows.map((r) => (
           <option key={r.id} value={r.id}>
             {r.name || `${r.first_name} ${r.last_name} · ${r.employee_code}`}

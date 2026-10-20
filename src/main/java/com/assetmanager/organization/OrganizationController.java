@@ -48,7 +48,10 @@ public class OrganizationController {
   @GetMapping("/{org}")
   public Map<String, Object> get(@PathVariable UUID org) {
     access.role(org);
-    return db.queryForMap("select * from organizations where id=?", org);
+    return db.queryForMap(
+        "select id,name,legal_name,tax_id,active,created_at,theme_key,branding_version from"
+            + " organizations where id=?",
+        org);
   }
 
   @PostMapping

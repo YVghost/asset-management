@@ -57,6 +57,8 @@ class InventoryIntegrationTest {
   @Autowired AssetService assets;
   @Autowired AssignmentService assignments;
   @Autowired AccessService access;
+  @Autowired com.assetmanager.organization.BrandingService branding;
+  @Autowired com.assetmanager.asset.TrackingController tracking;
   @Autowired com.assetmanager.identity.SystemAdminService system;
   @Autowired JdbcTemplate db;
   @Autowired CatalogService catalogs;
@@ -114,6 +116,150 @@ class InventoryIntegrationTest {
     SecurityContextHolder.getContext()
         .setAuthentication(
             UsernamePasswordAuthenticationToken.authenticated(email, null, List.of()));
+  }
+
+  @Test
+  void brandingIsPersistentAndExclusiveToItsOrganization() {
+    assertEquals("GENERIC", branding.get(org, false).get("theme_key"));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () -> branding.save(org, new BrandingService.Input("EDINUN", null, null, null, null)));
+    db.update("update app_users set system_admin=true where id=?", user);
+    branding.save(org, new BrandingService.Input("EDINUN", null, null, null, null));
+    assertEquals("EDINUN", branding.get(org, true).get("theme_key"));
+    assertEquals("GENERIC", branding.get(other, true).get("theme_key"));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () ->
+            branding.save(
+                org,
+                new BrandingService.Input("CUSTOM", "#FFFFFF", "#FFFFFF", "#000000", "ARIAL")));
+    branding.save(
+        org, new BrandingService.Input("CUSTOM", "#185A65", "#172E3D", "#F4F6FA", "ARIAL"));
+    assertEquals("ARIAL", ((Map<?, ?>) branding.get(org, true).get("config")).get("font"));
+    db.update("update app_users set system_admin=false where id=?", user);
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> branding.get(other, false));
+    assertEquals("CUSTOM", branding.get(org, false).get("theme_key"));
+  }
+
+  @Test
+  void organizationLogosAreValidatedAndProtected() throws Exception {
+    db.update("update app_users set system_admin=true where id=?", user);
+    var image = new java.awt.image.BufferedImage(32, 32, java.awt.image.BufferedImage.TYPE_INT_RGB);
+    var out = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(image, "png", out);
+    branding.logo(
+        org,
+        new org.springframework.mock.web.MockMultipartFile(
+            "file", "logo.png", "image/png", out.toByteArray()));
+    assertTrue((Boolean) branding.get(org, true).get("has_logo"));
+    assertNotNull(javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(branding.logo(org))));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () ->
+            branding.logo(
+                org,
+                new org.springframework.mock.web.MockMultipartFile(
+                    "file", "bad.svg", "image/svg+xml", "<svg onload='alert(1)'/>".getBytes())));
+    db.update("update app_users set system_admin=false where id=?", user);
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> branding.logo(other));
+  }
+
+  @Test
+  void trackingIsUniqueStableAndResolvesOnlyForAuthorizedOrganizations() {
+    UUID id = hardware(), otherId = hardware();
+    var initial = assets.detail(org, id);
+    UUID token = (UUID) initial.get("tracking_id");
+    assertNotEquals(token, assets.detail(org, otherId).get("tracking_id"));
+    assertEquals(id, tracking.resolve(token).get("id"));
+    assets.save(org, id, input("UPDATED-QR", false), "HARDWARE");
+    assertEquals(token, assets.detail(org, id).get("tracking_id"));
+    assignments.assign(org, id, delivery(employee), false);
+    assignments.assign(
+        org,
+        id,
+        new AssignmentService.Input(
+            secondEmployee, null, Instant.now().minusSeconds(1), null, "Transfer"),
+        true);
+    assertEquals(
+        secondEmployee,
+        assets.detail(org, (UUID) tracking.resolve(token).get("id")).get("employee_id"));
+    db.update(
+        "delete from organization_memberships where user_id=? and organization_id=?", user, org);
+    assertThrows(com.assetmanager.shared.ApiException.class, () -> tracking.resolve(token));
+  }
+
+  private long filterCount(AssetService.Filter filter) {
+    return ((Number) assets.list(org, filter, 0, 20, "name", "asc").get("totalElements"))
+        .longValue();
+  }
+
+  private AssetService.Filter personFilter(
+      String person, String scope, String dateField, LocalDate from, LocalDate to) {
+    return new AssetService.Filter(
+        null, null, null, null, null, null, null, null, null, null, null, person, scope, null, null,
+        dateField, from, to);
+  }
+
+  @Test
+  void personFiltersDistinguishCurrentAndPreviousAssignmentsAndSameMovementDates() {
+    UUID id = hardware();
+    assignments.assign(
+        org,
+        id,
+        new AssignmentService.Input(
+            employee, null, Instant.now().minusSeconds(172800), null, "Old delivery"),
+        false);
+    assignments.assign(
+        org,
+        id,
+        new AssignmentService.Input(
+            secondEmployee, null, Instant.now().minusSeconds(1), null, "Transfer"),
+        true);
+    assertEquals(0, filterCount(personFilter("Ana", "CURRENT", null, null, null)));
+    assertEquals(1, filterCount(personFilter("Ana", "HISTORY", null, null, null)));
+    assertEquals(1, filterCount(personFilter("Carlos", "CURRENT", null, null, null)));
+    assertEquals(0, filterCount(personFilter("Carlos", "HISTORY", null, null, null)));
+    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+    assertEquals(0, filterCount(personFilter("Ana", "HISTORY", "ASSIGNED", today, today)));
+    assertEquals(1, filterCount(personFilter("Ana", "HISTORY", "RETURNED", today, today)));
+    assertEquals(1, filterCount(personFilter("E1", "ANY", null, null, null)));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () -> filterCount(personFilter(null, "CURRENT", "ACQUISITION", today, today.minusDays(1))));
+  }
+
+  @Test
+  void extendedFiltersApplyToHardwareDigitalAndUnassignedAssets() {
+    hardware();
+    assets.save(org, null, input("FILTER-DIGITAL", true), "DIGITAL");
+    assertEquals(
+        1,
+        filterCount(
+            new AssetService.Filter("dell", null, null, null, null, null, null, null, null)));
+    assertEquals(
+        1,
+        filterCount(
+            new AssetService.Filter(
+                null,
+                "HARDWARE",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "deLL",
+                "lat",
+                null,
+                null,
+                "UNASSIGNED",
+                null,
+                null,
+                null,
+                null)));
+    assertEquals(1, filterCount(personFilter("Ana", "CURRENT", null, null, null)));
   }
 
   @Test
@@ -271,6 +417,173 @@ class InventoryIntegrationTest {
   UUID hardware() {
     return (UUID)
         assets.save(org, null, input("HW-" + UUID.randomUUID(), false), "HARDWARE").get("id");
+  }
+
+  private AssetInput areaAsset(String code, UUID department, UUID location) {
+    var in = input(code, false);
+    return new AssetInput(
+        in.assetCode(),
+        in.name(),
+        in.description(),
+        in.assetKind(),
+        in.categoryId(),
+        in.acquisitionDate(),
+        in.acquisitionCost(),
+        in.residualValue(),
+        in.currency(),
+        in.inServiceDate(),
+        in.usefulLifeMonths(),
+        location,
+        department,
+        null,
+        null,
+        null,
+        null,
+        in.hardware(),
+        null,
+        null);
+  }
+
+  @Test
+  void departmentsAndLocationsCanBeRenamedArchivedAndRestoredWithoutBreakingReferences() {
+    UUID department =
+        (UUID)
+            catalogs
+                .save(
+                    org,
+                    "departments",
+                    null,
+                    new CatalogService.Input(" Operaciones ", null, null, null, null, true))
+                .get("id");
+    UUID location =
+        (UUID)
+            catalogs
+                .save(
+                    org,
+                    "locations",
+                    null,
+                    new CatalogService.Input("Bodega central", "Piso 1", null, null, null, true))
+                .get("id");
+    UUID id =
+        (UUID)
+            assets
+                .save(org, null, areaAsset("AREA-ASSET", department, location), "HARDWARE")
+                .get("id");
+    catalogs.saveEmployee(
+        org,
+        employee,
+        new CatalogService.EmployeeInput(
+            "E1", "Ana", "Torres", null, department, location, "Analista", true, null));
+    var rows =
+        (List<Map<String, Object>>)
+            catalogs.list(org, "departments", "", 0, 20, false).get("content");
+    assertEquals(1L, rows.getFirst().get("asset_count"));
+    assertEquals(1L, rows.getFirst().get("employee_count"));
+    catalogs.save(
+        org,
+        "departments",
+        department,
+        new CatalogService.Input("Logística", null, null, null, null, true));
+    catalogs.save(
+        org,
+        "locations",
+        location,
+        new CatalogService.Input("Centro de distribución", "Piso 2", null, null, null, true));
+    assertEquals("Logística", assets.detail(org, id).get("department_name"));
+    assertEquals("Centro de distribución", assets.detail(org, id).get("location_name"));
+    assignments.assign(org, id, delivery(employee), false);
+    catalogs.archive(org, "departments", department);
+    catalogs.archive(org, "locations", location);
+    assertEquals(department, assets.detail(org, id).get("department_id"));
+    assertEquals(location, catalogs.employee(org, employee).get("location_id"));
+    assertEquals(1, assignments.history(org, id).size());
+    assertEquals(
+        0L, catalogs.list(org, "departments", "", 0, 20, false, "ACTIVE").get("totalElements"));
+    assertEquals(
+        1L, catalogs.list(org, "locations", "", 0, 20, false, "INACTIVE").get("totalElements"));
+    assertNotNull(assets.save(org, id, areaAsset("AREA-ASSET", department, location), "HARDWARE"));
+    assertNotNull(
+        catalogs.saveEmployee(
+            org,
+            employee,
+            new CatalogService.EmployeeInput(
+                "E1", "Ana", "Torres", null, department, location, "Coordinadora", true, null)));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () ->
+            assets.save(org, null, areaAsset("NEW-AREA-ASSET", department, location), "HARDWARE"));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () ->
+            catalogs.saveEmployee(
+                org,
+                null,
+                new CatalogService.EmployeeInput(
+                    "E3", "Nueva", "Persona", null, department, location, null, true, null)));
+    catalogs.save(
+        org,
+        "departments",
+        department,
+        new CatalogService.Input("Logística", null, null, null, null, true));
+    catalogs.save(
+        org,
+        "locations",
+        location,
+        new CatalogService.Input("Centro de distribución", "Piso 2", null, null, null, true));
+    assertNotNull(
+        assets.save(org, null, areaAsset("NEW-AREA-ASSET", department, location), "HARDWARE"));
+  }
+
+  @Test
+  void areaCatalogsRemainIndependentAndViewerCannotModifyThem() {
+    UUID own =
+        (UUID)
+            catalogs
+                .save(
+                    org,
+                    "departments",
+                    null,
+                    new CatalogService.Input("TI", null, null, null, null, true))
+                .get("id");
+    db.update(
+        "insert into organization_memberships(id,organization_id,user_id,role)"
+            + " values(?,?,?,'ORG_ADMIN')",
+        UUID.randomUUID(),
+        other,
+        user);
+    UUID foreign =
+        (UUID)
+            catalogs
+                .save(
+                    other,
+                    "departments",
+                    null,
+                    new CatalogService.Input("TI", null, null, null, null, true))
+                .get("id");
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () -> catalogs.archive(org, "departments", foreign));
+    db.update(
+        "delete from organization_memberships where organization_id=? and user_id=?", other, user);
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () -> catalogs.list(other, "departments", "", 0, 20, false));
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () ->
+            catalogs.save(
+                other,
+                "departments",
+                foreign,
+                new CatalogService.Input("Otra", null, null, null, null, true)));
+    db.update(
+        "update organization_memberships set role='VIEWER' where organization_id=? and user_id=?",
+        org,
+        user);
+    assertThrows(
+        com.assetmanager.shared.ApiException.class,
+        () -> catalogs.archive(org, "departments", own));
+    assertEquals("TI", catalogs.get(org, "departments", own).get("name"));
   }
 
   AssignmentService.Input delivery(UUID to) {
@@ -556,6 +869,19 @@ class InventoryIntegrationTest {
     assertEquals(201, created.statusCode(), created.body());
     @SuppressWarnings("unchecked")
     var saved = (Map<String, Object>) json.read(created.body());
+    assertEquals(
+        200,
+        http(client, root + "/tracking/" + saved.get("tracking_id"), "GET", null, null)
+            .statusCode());
+    assertEquals(
+        403,
+        http(
+                client,
+                root + "/system/organizations/" + org + "/branding",
+                "PUT",
+                Map.of("themeKey", "EDINUN"),
+                csrf)
+            .statusCode());
     assertEquals("2025-01-01", saved.get("acquisition_date"));
     var delivery =
         http(
@@ -566,6 +892,50 @@ class InventoryIntegrationTest {
                 employee, null, Instant.now().minusSeconds(1), null, "HTTP delivery"),
             csrf);
     assertEquals(200, delivery.statusCode(), delivery.body());
+    String today = LocalDate.now(ZoneOffset.UTC).toString();
+    var filtered =
+        http(
+            client,
+            root
+                + "/organizations/"
+                + org
+                + "/assets?person=Ana&personScope=CURRENT&brand=Dell&dateField=ASSIGNED&from="
+                + today
+                + "&to="
+                + today,
+            "GET",
+            null,
+            null);
+    assertEquals(200, filtered.statusCode(), filtered.body());
+    assertEquals(
+        1, ((Number) ((Map<?, ?>) json.read(filtered.body())).get("totalElements")).intValue());
+    assertEquals(
+        400,
+        http(
+                client,
+                root + "/organizations/" + org + "/assets?personScope=INVALID",
+                "GET",
+                null,
+                null)
+            .statusCode());
+    assertEquals(
+        400,
+        http(
+                client,
+                root + "/organizations/" + org + "/assets?from=2025-02-01&to=2025-01-01",
+                "GET",
+                null,
+                null)
+            .statusCode());
+    var historyExport =
+        http(
+            client,
+            root + "/organizations/" + org + "/assets/export?person=Ana&personScope=CURRENT",
+            "GET",
+            null,
+            null);
+    assertEquals(200, historyExport.statusCode(), historyExport.body());
+    assertTrue(historyExport.body().contains(valid.assetCode()));
     assertEquals(
         200,
         http(client, root + "/organizations/" + org + "/dashboard", "GET", null, null)
@@ -584,6 +954,10 @@ class InventoryIntegrationTest {
         http(client, "http://127.0.0.1:" + port + "/v3/api-docs", "GET", null, null).statusCode());
     assertEquals(204, http(client, root + "/auth/logout", "POST", null, csrf).statusCode());
     assertEquals(401, http(client, root + "/auth/me", "GET", null, null).statusCode());
+    assertEquals(
+        401,
+        http(client, root + "/tracking/" + saved.get("tracking_id"), "GET", null, null)
+            .statusCode());
   }
 
   java.net.http.HttpResponse<String> http(

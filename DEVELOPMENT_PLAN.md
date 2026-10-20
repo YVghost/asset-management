@@ -1,5 +1,11 @@
 # Estado de desarrollo de AMS
 
+Gestión autónoma de áreas y ubicaciones: acciones explícitas de crear/editar/desactivar/reactivar, filtro activo/inactivo y conteo de activos/personas relacionados. Administradores y gestores de cada empresa pueden gestionarlas sin intervención del maestro; las cuentas de consulta no pueden modificarlas. Los activos y empleados existentes conservan las referencias inactivas al editar; las nuevas altas solo permiten referencias activas. Nombres y datos aislados por organización. Se reutilizó el esquema existente, sin migraciones nuevas. Documentación en `docs/AREAS_LOCATIONS.md`.
+
+Actualización del 20 de octubre de 2026: identidad por UUID de organización (GENERIC, EDINUN o CUSTOM), logo propio persistente y colores/fuentes validados por contraste; carpeta de marca movida a `frontend/src/branding/edinun/`; organización Edinun independiente configurada sin copiar inventario demo; interfaz con fuentes mayores y contraste reforzado; filtros combinables de activo, responsables actuales/anteriores, áreas, proveedor, estado y rangos de fecha; UUID QR permanente por activo, etiquetas individuales/por selección, PNG e impresión A4 con resolución autorizada a la ficha actual. Se corrigieron las rutas SPA de Nginx que coincidían con `/assets`. Se agregaron migraciones V2 y V3 sin modificar V1. Ver `docs/BRANDING_FILTERS_QR.md`.
+
+Validación de esta actualización: 27 pruebas backend (19 de integración con PostgreSQL 17.6 de Testcontainers y 8 unitarias), 17 frontend y recorrido Chrome aprobado. El navegador comprobó tema Edinun/genérico/personalizado con logo subido, aislamiento entre empresas, filtros históricos y CSV, PNG decodificado por un lector QR independiente, ficha tras transferencia, lote de etiquetas y PDF A4; se revisaron capturas desktop/móvil. Las empresas QA se desactivan al terminar. Docker se reconstruyó y se comprobó persistencia de inventario, identificadores QR, marcas y logos mediante down/up sin eliminar volúmenes. HTTPS y alcance desde teléfonos requieren configurar la dirección/red del servidor.
+
 Entrega local: 16 de octubre de 2026. Se conservó el backend Maven existente en la raíz y se añadió `frontend/`. No existían funcionalidades de negocio, migraciones o datos que preservar.
 
 Actualización de administración maestra: cuenta global independiente aprovisionada desde variables `MASTER_*`, panel `/system`, CRUD administrativo de empresas y cuentas, suspensión/reactivación, cambios de contraseña y asignación/revocación de membresías. Las 21 pruebas backend se ejecutaron contra PostgreSQL 17.6 en Testcontainers y pasaron sin omisiones. Las 12 pruebas frontend y la compilación pasaron. El recorrido Chrome del panel maestro verificó creación de empresa y usuario, asignación de acceso y rechazo 403 del panel global para una cuenta normal, que solo ve su empresa. Las imágenes se reconstruyeron y los tres servicios Docker quedaron saludables. Los registros creados por la prueba de administración se desactivaron al finalizar. No hubo cambios de esquema ni eliminación de inventarios.
@@ -29,7 +35,7 @@ Actualización de administración maestra: cuenta global independiente aprovisio
 | Comprobación | Resultado |
 | --- | --- |
 | Compilación y empaquetado Maven | Correctos; JAR ejecutable generado |
-| Pruebas backend | 21 aprobadas: 7 unitarias y 14 de integración, sin omisiones |
+| Pruebas backend | 27 aprobadas: 8 unitarias y 19 de integración, sin omisiones |
 | Migración V1 | Ejecutada correctamente sobre PostgreSQL temporal |
 | Hibernate `ddl-auto=validate` | Correcto contra esquema migrado |
 | PostgreSQL real | Pruebas de claves, códigos, persistencia, costos y operaciones transaccionales |
@@ -38,7 +44,7 @@ Actualización de administración maestra: cuenta global independiente aprovisio
 | API de inventario | Alta HTTP, fechas de calendario, entrega, consulta, dashboard y CSV comprobados |
 | Swagger/OpenAPI | `/v3/api-docs` devuelve 200 |
 | Seed | Datos e idempotencia comprobados |
-| Frontend unitario/componentes | 12 pruebas aprobadas |
+| Frontend unitario/componentes | 17 pruebas aprobadas |
 | TypeScript y build Vite | Correctos |
 | Navegador Chrome real | 1 recorrido integral aprobado: login, alta y edición de laptop, vida útil, entrega, ficha del empleado, devolución, recarga y alta/alerta digital |
 | Revisión responsive | Capturas desktop y móvil generadas e inspeccionadas |
@@ -59,7 +65,7 @@ No se realizó despliegue externo ni se ejecutaron migraciones contra una base d
 
 - Mantenimiento: se gestiona el estado del activo; la tabla de órdenes existe, pero no hay todavía UI/API de órdenes, costos o planificación avanzada.
 - Licencias: responsable administrativo y puestos contratados; falta la asignación/consumo individual de puestos y sus reglas de concurrencia.
-- Vida útil: `residual_value` preparado; sin política de depreciación contable. No hay importación CSV, PDFs complejos, QR, códigos de barras, compras ni adjuntos.
+- Vida útil: `residual_value` preparado; sin política de depreciación contable. QR y etiquetas A4 implementados. No hay importación CSV, PDFs complejos de reportes, códigos de barras, compras ni adjuntos.
 - Padre/hijo: disponible por API; falta selector y visualización de árbol en la interfaz.
 - Especificaciones: el modelo JSONB admite campos adicionales por API; la interfaz presenta los campos técnicos iniciales. No hay todavía diseñador de campos dinámicos por categoría.
 - Administración global implementada: cuenta maestra independiente, panel de organizaciones y usuarios, activación/suspensión, restablecimiento de contraseñas y membresías por empresa. Las cuentas maestras tienen acceso a todas las organizaciones activas; las normales mantienen el aislamiento. Faltan recuperación/autocambio de contraseña, MFA y revocación masiva de sesiones. Ver `docs/MASTER_ADMIN.md`.

@@ -1,5 +1,7 @@
 # Uso: docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
 services:
+  frontend:
+    ports: !override ["127.0.0.1:3000:80"]
   db:
     ports: !reset []
   backend:

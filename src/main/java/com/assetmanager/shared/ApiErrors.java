@@ -9,6 +9,12 @@ import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
 public class ApiErrors {
+  @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+  ResponseEntity<?> uploadTooLarge(Exception error) {
+    return ResponseEntity.badRequest()
+        .body(Map.of("message", "El logo debe pesar como máximo 1 MB"));
+  }
+
   @ExceptionHandler(ApiException.class)
   ResponseEntity<?> business(ApiException e) {
     return ResponseEntity.status(e.status).body(Map.of("message", e.getMessage()));

@@ -33,8 +33,9 @@ public class CatalogController {
       @RequestParam(defaultValue = "") String search,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size,
-      @RequestParam(defaultValue = "false") boolean activeOnly) {
-    return catalogs.list(org, type, search, page, size, activeOnly);
+      @RequestParam(defaultValue = "false") boolean activeOnly,
+      @RequestParam(defaultValue = "ALL") String state) {
+    return catalogs.list(org, type, search, page, size, activeOnly, state);
   }
 
   @PostMapping("/{type:departments|locations|suppliers|categories}")
