@@ -167,9 +167,9 @@ public class AssetService {
         throw ApiException.invalid("El vencimiento debe ser posterior a la activación");
       db.update(
           "insert into"
-              + " digital_asset_details(asset_id,organization_id,product,license_type,contract_reference,activation_date,expiration_date,auto_renew,renewal_cost,seats,responsible_employee_id)"
-              + " values(?,?,?,?,?,?,?,?,?,?,?) on conflict(asset_id) do update set"
-              + " product=excluded.product,license_type=excluded.license_type,contract_reference=excluded.contract_reference,activation_date=excluded.activation_date,expiration_date=excluded.expiration_date,auto_renew=excluded.auto_renew,renewal_cost=excluded.renewal_cost,seats=excluded.seats,responsible_employee_id=excluded.responsible_employee_id",
+              + " digital_asset_details(asset_id,organization_id,product,license_type,contract_reference,activation_date,expiration_date,auto_renew,renewal_cost,seats,responsible_employee_id,management_url)"
+              + " values(?,?,?,?,?,?,?,?,?,?,?,?) on conflict(asset_id) do update set"
+              + " product=excluded.product,license_type=excluded.license_type,contract_reference=excluded.contract_reference,activation_date=excluded.activation_date,expiration_date=excluded.expiration_date,auto_renew=excluded.auto_renew,renewal_cost=excluded.renewal_cost,seats=excluded.seats,responsible_employee_id=excluded.responsible_employee_id,management_url=excluded.management_url",
           a.id,
           org,
           d.product(),
@@ -180,7 +180,8 @@ public class AssetService {
           d.autoRenew(),
           d.renewalCost(),
           d.seats(),
-          d.responsibleEmployeeId());
+          d.responsibleEmployeeId(),
+          d.managementUrl());
     }
     audit.record(
         org, a.id, create ? "CREATED" : "UPDATED", Map.of("before", before, "after", snapshot(a)));
@@ -538,7 +539,7 @@ public class AssetService {
           "digital",
           db.queryForMap(
               "select"
-                  + " product,license_type,contract_reference,activation_date,expiration_date,auto_renew,renewal_cost,seats,responsible_employee_id"
+                  + " product,license_type,contract_reference,activation_date,expiration_date,auto_renew,renewal_cost,seats,responsible_employee_id,management_url"
                   + " from digital_asset_details where organization_id=? and asset_id=?",
               org,
               id));

@@ -57,11 +57,6 @@ test("tema por empresa, historial filtrado y QR decodificado con responsable act
       name: "Oficina QA",
       active: true,
     });
-    await post(`/organizations/${org.id}/categories`, {
-      name: "Laptops",
-      assetKind: "HARDWARE",
-      active: true,
-    });
     const first = await post(`/organizations/${org.id}/employees`, {
       employeeCode: "QA-001",
       firstName: "QA",

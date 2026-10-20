@@ -132,6 +132,7 @@ export function AssetDetail() {
                           ([k, v]) => [
                             (
                               {
+                                storagePlace: "Lugar de almacenamiento",
                                 processor: "Procesador",
                                 ram: "RAM",
                                 storage: "Almacenamiento",
@@ -148,6 +149,7 @@ export function AssetDetail() {
                     }
                   : {
                       Producto: a.digital.product,
+                      "Portal de gestión": a.digital.management_url,
                       "Tipo de licencia": a.digital.license_type,
                       Contrato: a.digital.contract_reference,
                       Activación: date(a.digital.activation_date),
@@ -206,7 +208,7 @@ export function AssetDetail() {
           </section>
           <section className="panel detail-panel">
             <span className="eyebrow">RESPONSABLE ACTUAL</span>
-            <h2>{a.assigned_employee || "Sin asignar"}</h2>
+            <h2>{a.assigned_employee || "Custodia de la organización"}</h2>
             {a.current_assigned_at && (
               <p className="muted">
                 Entrega: {date(a.current_assigned_at)}

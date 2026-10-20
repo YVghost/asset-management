@@ -67,6 +67,7 @@ public class OrganizationController {
         in.name(),
         in.legalName(),
         in.taxId());
+    db.queryForObject("select seed_organization_categories(?)", Object.class, id);
     db.update(
         "insert into organization_memberships(id,organization_id,user_id,role)"
             + " values(?,?,?,'ORG_ADMIN')",

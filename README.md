@@ -1,5 +1,7 @@
 # AMS · Asset Management System
 
+El registro de activos incluye categorías iniciales por empresa, creación de categorías propias y custodia empresarial o responsable opcional. Consulta [docs/CATEGORIES_CUSTODY.md](docs/CATEGORIES_CUSTODY.md).
+
 Las empresas pueden crear, renombrar, desactivar y reactivar sus propias áreas y ubicaciones desde el menú lateral. Consulta [docs/AREAS_LOCATIONS.md](docs/AREAS_LOCATIONS.md).
 
 La actualización de temas por organización, filtros históricos y etiquetas QR está documentada en [docs/BRANDING_FILTERS_QR.md](docs/BRANDING_FILTERS_QR.md). Edinun tiene una organización y un tema propios; las demás empresas conservan su identidad genérica o personalizada.

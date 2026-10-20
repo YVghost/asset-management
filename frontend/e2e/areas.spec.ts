@@ -11,7 +11,6 @@ test('administrador de empresa gestiona áreas y ubicaciones y conserva los vín
  try{
   user=await (await page.request.post('/api/v1/system/users',{headers,data:{email:`qa-area-${tag}@example.test`,fullName:'QA administrador de empresa',password:'QA-Only-Password-123',active:true,systemAdmin:false}})).json();
   expect((await page.request.post(`/api/v1/system/users/${user.id}/memberships`,{headers,data:{organizationId:org.id,role:'ORG_ADMIN'}})).ok()).toBe(true);
-  expect((await page.request.post(`/api/v1/organizations/${org.id}/categories`,{headers,data:{name:'Laptops',assetKind:'HARDWARE',active:true}})).ok()).toBe(true);
   const tenant=await context.newPage();await tenant.goto(new URL('/',page.url()).href);await tenant.getByLabel('Correo empresarial').fill(user.email);await tenant.getByLabel('Contraseña',{exact:true}).fill('QA-Only-Password-123');await tenant.getByRole('button',{name:'Entrar al espacio de trabajo'}).click();await expect(tenant.getByLabel('Organización activa')).toHaveValue(org.id);await expect(tenant.getByRole('link',{name:'Administración maestra',exact:true})).toHaveCount(0);
   await tenant.getByRole('link',{name:'Áreas',exact:true}).click();
   let department:any;

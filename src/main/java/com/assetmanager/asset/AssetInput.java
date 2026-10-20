@@ -45,5 +45,29 @@ public record AssetInput(
       boolean autoRenew,
       @DecimalMin("0") @Digits(integer = 17, fraction = 2) BigDecimal renewalCost,
       @Min(1) Integer seats,
-      UUID responsibleEmployeeId) {}
+      UUID responsibleEmployeeId,
+      @Size(max = 500) String managementUrl) {
+    public Digital(
+        String product,
+        String licenseType,
+        String contractReference,
+        LocalDate activationDate,
+        LocalDate expirationDate,
+        boolean autoRenew,
+        BigDecimal renewalCost,
+        Integer seats,
+        UUID responsibleEmployeeId) {
+      this(
+          product,
+          licenseType,
+          contractReference,
+          activationDate,
+          expirationDate,
+          autoRenew,
+          renewalCost,
+          seats,
+          responsibleEmployeeId,
+          null);
+    }
+  }
 }

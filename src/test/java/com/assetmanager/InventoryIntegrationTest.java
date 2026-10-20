@@ -275,6 +275,23 @@ class InventoryIntegrationTest {
                 "Master test", null, null, true));
     UUID createdId = (UUID) created.get("id");
     assertEquals("ORG_ADMIN", access.role(createdId));
+    assertEquals(
+        27,
+        db.queryForObject(
+            "select count(*) from asset_categories where organization_id=?",
+            Integer.class,
+            createdId));
+    var starter = catalogs.list(createdId, "categories", "Laptops", 0, 20, true);
+    UUID starterId = (UUID) ((Map<?, ?>) ((List<?>) starter.get("content")).getFirst()).get("id");
+    catalogs.archive(createdId, "categories", starterId);
+    db.queryForObject("select seed_organization_categories(?)", Object.class, createdId);
+    assertEquals(false, catalogs.get(createdId, "categories", starterId).get("active"));
+    assertEquals(
+        27,
+        db.queryForObject(
+            "select count(*) from asset_categories where organization_id=?",
+            Integer.class,
+            createdId));
     system.organization(
         createdId,
         new com.assetmanager.identity.SystemAdminService.OrganizationInput(
@@ -398,7 +415,13 @@ class InventoryIntegrationTest {
         digital
             ? null
             : new AssetInput.Hardware(
-                "Dell", "Latitude", "S-123", null, "GOOD", null, Map.of("ram", "16 GB")),
+                "Dell",
+                "Latitude",
+                "S-123",
+                null,
+                "GOOD",
+                null,
+                Map.of("ram", "16 GB", "storagePlace", "Bodega / estante 3")),
         digital
             ? new AssetInput.Digital(
                 "Microsoft 365",
@@ -409,7 +432,8 @@ class InventoryIntegrationTest {
                 true,
                 new BigDecimal("200.00"),
                 10,
-                employee)
+                employee,
+                "https://admin.example.test")
             : null,
         null);
   }
@@ -597,6 +621,11 @@ class InventoryIntegrationTest {
     assertNotNull(h.get("lifecycle"));
     var d = assets.save(org, null, input("DIG-1", true), "DIGITAL");
     assertEquals(10, ((Map<?, ?>) d.get("digital")).get("seats"));
+    assertEquals(
+        "https://admin.example.test", ((Map<?, ?>) d.get("digital")).get("management_url"));
+    assertEquals(
+        "Bodega / estante 3",
+        ((Map<?, ?>) ((Map<?, ?>) h.get("hardware")).get("specifications")).get("storagePlace"));
     assertEquals(
         new BigDecimal("123.45"),
         db.queryForObject(

@@ -72,6 +72,7 @@ public class SystemAdminService {
           in.legalName(),
           in.taxId(),
           in.active());
+      db.queryForObject("select seed_organization_categories(?)", Object.class, id);
     } else if (db.update(
             "update organizations set name=?,legal_name=?,tax_id=?,active=? where id=?",
             in.name(),

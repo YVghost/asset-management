@@ -46,6 +46,7 @@ public class BootstrapAdmin implements CommandLineRunner {
           "El aprovisionamiento inicial solo puede ejecutarse en una base sin usuarios");
     UUID org = UUID.randomUUID(), user = UUID.randomUUID();
     db.update("insert into organizations(id,name) values(?,?)", org, organization);
+    db.queryForObject("select seed_organization_categories(?)", Object.class, org);
     db.update(
         "insert into app_users(id,email,password_hash,full_name,system_admin) values(?,?,?,?,true)",
         user,
