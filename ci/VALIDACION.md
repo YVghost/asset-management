@@ -1,52 +1,63 @@
-# Validación local de Jenkins
+# Validación de Jenkins: ejecución real
 
-Fecha: **23 de octubre de 2026**. Repositorio `asset-management`, rama `mateo_ortega`.
+Fecha: **23 de octubre de 2026**. Repositorio `asset-management`, rama **mateo_ortega**.
 
-## Ejecutado y confirmado
+## Implementación y publicación
 
-| Comprobación | Resultado real |
-|---|---|
-| Docker Desktop / motor Linux | Iniciado y disponible |
-| Compose independiente | `docker compose -f docker-compose.jenkins.yml config --quiet` válido |
-| Imagen Jenkins | Construida, Jenkins 2.580.1, usuario final `jenkins` |
-| Versiones de herramientas en la imagen | Java 21.0.12.1, Maven 3.9.9, Node 22.20.0, npm 10.9.3 |
-| Plugins | 71 incluidos con dependencias, versiones exactas en plugins.txt |
-| Imágenes base Jenkins/Maven/Node | Fijadas por digest SHA-256 |
-| Jenkins local | Contenedor iniciado en 127.0.0.1:8080 |
-| PostgreSQL CI | 17.6-alpine, aislado, sin puerto público ni volumen de producción |
-| Jenkinsfile | Validado por `/pipeline-model-converter/validate`: `Jenkinsfile successfully validated.` |
-| Etapas declaradas | Exactamente 3, con checkout automático deshabilitado |
-| Job | `asset-management-ci` creado con sandbox y parámetro FORCE_FAILURE; sin ejecuciones |
-| Scripts auxiliares | 7 pruebas unitarias aprobadas |
-| Backend real | `mvn -B -ntp clean verify` aprobado; 29 pruebas, 0 fallos, 0 omitidas |
-| Integración real PostgreSQL | 21 pruebas incluidas en las 29 del backend, 0 omitidas |
-| Frontend real | `npm ci`, 17 pruebas Vitest aprobadas con JUnit y `npm run build` aprobado |
-| Comprobador de reportes | Backend, integración y frontend aceptados; omisiones/fallos/reportes ausentes rechazados en sus pruebas |
-| Higiene Git | Cambios en mateo_ortega; sin commits, push ni modificaciones de main |
+- Commit de código CI probado: **d1c37eb**, publicado en `origin/mateo_ortega` con autorización del usuario.
+- Jenkins 2.580.1 ejecutándose en **http://localhost:8080**; job `asset-management-ci`.
+- Jenkinsfile validado por el parser declarativo real, con exactamente tres etapas y checkout implícito deshabilitado.
+- Java 21.0.12.1, Maven 3.9.9, Node 22.20.0 y npm 10.9.3 en la imagen Jenkins.
+- PostgreSQL 17.6 aislado para CI; no se utilizó la base real de la aplicación.
+- Imágenes base fijadas por digest y 71 plugins con sus dependencias fijados por versión.
+- Credenciales `github-private`, `telegram-bot-token` y `telegram-chat-id` guardadas en Jenkins, no en el repositorio.
 
-La compilación y pruebas se ejecutaron dentro de la imagen Jenkins, con las mismas herramientas, variables y PostgreSQL de CI, usando una copia temporal del repositorio montado en solo lectura. Esto **no equivale a una ejecución completa del job** ni a probar credenciales privadas de GitHub. No se modificaron archivos de negocio ni inventarios existentes.
+## Resultados de los builds reales
 
-El frontend produjo una advertencia informativa de bundle superior a 500 kB. La compilación terminó correctamente; no se cambió la aplicación para ocultarla.
+| Comprobación | Build #1 | Build #2 |
+|---|---|---|
+| Parámetro FORCE_FAILURE | false | true |
+| Etapa 1: checkout con github-private | SUCCESS | SUCCESS |
+| Etapa 2: compilación y pruebas | SUCCESS | FAILED intencionalmente después de las pruebas |
+| Backend | 29 aprobadas, incluidas 21 de integración PostgreSQL | 29 aprobadas, incluidas 21 de integración PostgreSQL |
+| Frontend | 17 aprobadas | 17 aprobadas |
+| Total JUnit en Jenkins | 46 aprobadas, 0 omitidas | 46 aprobadas, 0 omitidas |
+| Etapa 3: Telegram | SUCCESS; API confirmó envío | SUCCESS; API confirmó envío |
+| Resultado final | **SUCCESS** | **FAILURE** |
+| Duración total | 32,549 segundos | 28,307 segundos |
 
-## Pendiente de configuración del usuario
+Enlaces locales:
 
-- Completar el asistente inicial y elegir administrador de Jenkins.
-- Completado posteriormente: credencial Username with password **github-private** registrada mediante la API autenticada de Jenkins; GitHub confirmó acceso a la rama mateo_ortega. El acceso con el repositorio privado sigue pendiente de cambiar su visibilidad.
-- Completado posteriormente: bot verificado y credenciales Secret text **telegram-bot-token** y **telegram-chat-id** registradas en Jenkins. Telegram confirmó un mensaje real de prueba enviado desde Jenkins.
-- Revisar, crear tú el commit y publicar los nuevos archivos en **mateo_ortega**. No se publicó código automáticamente.
-- Cambiar el repositorio a privado cuando corresponda y comprobar un checkout autenticado desde Jenkins.
-- Ejecutar el job con FORCE_FAILURE=false y luego con FORCE_FAILURE=true.
-- Confirmar los dos mensajes **reales** en Telegram y guardar las evidencias indicadas en GUIA_ENTREGA_JENKINS.md.
+- http://localhost:8080/job/asset-management-ci/1/
+- http://localhost:8080/job/asset-management-ci/2/
 
-Actualización: se confirmó la entrega de un mensaje real de configuración desde Jenkins al chat privado del usuario. Ese mensaje no representa un build. Continúan pendientes las ejecuciones completas SUCCESS/FAILURE del job y sus respectivos mensajes. Las pruebas del helper verifican ambos textos de resultado con respuestas simuladas. El acceso con el repositorio privado requiere cambiar su visibilidad y ejecutar el checkout autenticado.
+El fallo de #2 proviene exclusivamente del parámetro de demostración. Las 46 pruebas pasaron; no se introdujeron errores en la aplicación. La consola confirma que el envío correcto de Telegram conserva el FAILURE anterior. Para una nueva ejecución exitosa, desmarcar FORCE_FAILURE.
 
-## Repetir la comprobación aislada de la copia local
+Además se ejecutaron y aprobaron las 7 pruebas de los scripts auxiliares de reportes y Telegram. Las compilaciones Maven y TypeScript/Vite generaron el JAR ejecutable y los archivos dist. Jenkins archivó ambos, junto con los logs. Vite emitió una advertencia informativa por tamaño del bundle; no impidió compilar.
 
-En PowerShell, desde la raíz del proyecto, con Docker y Jenkins iniciados:
+## Evidencias e informe
+
+- Informe editable: [INFORME_JENKINS_MATEO_ORTEGA.docx](../docs/INFORME_JENKINS_MATEO_ORTEGA.docx), cuatro páginas comprobadas con Word.
+- [Carpeta de evidencias](../docs/evidencias-jenkins/): seis capturas reales del navegador, consolas de ambos builds, resultados y metadatos JSON.
+- El Word contiene cuatro capturas incrustadas y dos espacios para que el usuario agregue las fotos de las notificaciones de Telegram.
+- Las capturas fueron tomadas en Chrome contra el Jenkins local autenticado. No son maquetas.
+- El DOCX se verificó como paquete válido; las capturas principales se inspeccionaron visualmente.
+
+## Alcance y pendiente
+
+GitHub confirmó que el repositorio seguía **público** al recoger estas evidencias. Se usó la credencial de Jenkins y el checkout funcionó, pero no se afirma haber probado el clon de un repositorio privado. La guía explica cómo cambiar su visibilidad y repetir el build después.
+
+Las notificaciones SUCCESS y FAILURE fueron confirmadas por la API real de Telegram durante los builds #1 y #2. El usuario agregará las fotografías de su aplicación Telegram al Word.
+
+## Repetir las pruebas
+
+Desde Jenkins: `asset-management-ci` → Build with Parameters → FORCE_FAILURE=false para éxito o true para fallo controlado.
+
+Para comprobar solo la copia local, desde PowerShell:
 
 ```powershell
 $taskSource = (Get-Location).Path + ':/source:ro'
 docker compose -f docker-compose.jenkins.yml run --rm --no-deps --volume $taskSource --entrypoint bash jenkins /source/ci/verify-worktree.sh
 ```
 
-El script copia únicamente el código necesario a `/tmp`, excluye `.git`, `.env`, cachés y resultados previos, y prueba contra la base **CI**. No elimina ni sobrescribe código local. No ejecutes esta comprobación simultáneamente con un build Jenkins que esté usando la base CI.
+No ejecutar esa comprobación simultáneamente con otro build que esté usando la base CI. Para iniciar Jenkins: `docker compose -f docker-compose.jenkins.yml up -d`. No usar `down -v` si se desea conservar cuentas, credenciales, jobs e historial.

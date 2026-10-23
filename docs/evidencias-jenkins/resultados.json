@@ -1,0 +1,138 @@
+[
+  {
+    "number": 1,
+    "url": "http://localhost:8080/job/asset-management-ci/1/",
+    "result": "SUCCESS",
+    "forced": false,
+    "duration_ms": 32549,
+    "stages": [
+      {
+        "_links": {
+          "self": {
+            "href": "/job/asset-management-ci/1/execution/node/10/wfapi/describe"
+          }
+        },
+        "id": "10",
+        "name": "1. Integracion al repositorio privado",
+        "execNode": "",
+        "status": "SUCCESS",
+        "startTimeMillis": 1792793681993,
+        "durationMillis": 1847,
+        "pauseDurationMillis": 0
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "/job/asset-management-ci/1/execution/node/24/wfapi/describe"
+          }
+        },
+        "id": "24",
+        "name": "2. Compilacion y pruebas automatizadas",
+        "execNode": "",
+        "status": "SUCCESS",
+        "startTimeMillis": 1792793683882,
+        "durationMillis": 27595,
+        "pauseDurationMillis": 0
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "/job/asset-management-ci/1/execution/node/47/wfapi/describe"
+          }
+        },
+        "id": "47",
+        "name": "3. Notificacion por Telegram",
+        "execNode": "",
+        "status": "SUCCESS",
+        "startTimeMillis": 1792793711523,
+        "durationMillis": 1235,
+        "pauseDurationMillis": 0
+      }
+    ],
+    "tests": {
+      "totalCount": 46,
+      "passCount": 46,
+      "failCount": 0,
+      "skipCount": 0
+    },
+    "telegram_confirmed": true,
+    "artifacts": [
+      "ci-output/backend.log",
+      "ci-output/frontend.log",
+      "frontend/dist/assets/browser-B5Ed-OmB.js",
+      "frontend/dist/assets/index-DOTVQUo_.css",
+      "frontend/dist/assets/index-Ld_nGq0T.js",
+      "frontend/dist/assets/logo-Byo9CZoo.png",
+      "frontend/dist/index.html",
+      "target/asset-management-0.0.1-SNAPSHOT.jar"
+    ]
+  },
+  {
+    "number": 2,
+    "url": "http://localhost:8080/job/asset-management-ci/2/",
+    "result": "FAILURE",
+    "forced": true,
+    "duration_ms": 28307,
+    "stages": [
+      {
+        "_links": {
+          "self": {
+            "href": "/job/asset-management-ci/2/execution/node/10/wfapi/describe"
+          }
+        },
+        "id": "10",
+        "name": "1. Integracion al repositorio privado",
+        "execNode": "",
+        "status": "SUCCESS",
+        "startTimeMillis": 1792793735702,
+        "durationMillis": 1165,
+        "pauseDurationMillis": 0
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "/job/asset-management-ci/2/execution/node/24/wfapi/describe"
+          }
+        },
+        "id": "24",
+        "name": "2. Compilacion y pruebas automatizadas",
+        "execNode": "",
+        "status": "FAILED",
+        "startTimeMillis": 1792793736897,
+        "durationMillis": 25426,
+        "pauseDurationMillis": 0
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "/job/asset-management-ci/2/execution/node/48/wfapi/describe"
+          }
+        },
+        "id": "48",
+        "name": "3. Notificacion por Telegram",
+        "execNode": "",
+        "status": "SUCCESS",
+        "startTimeMillis": 1792793762353,
+        "durationMillis": 1189,
+        "pauseDurationMillis": 0
+      }
+    ],
+    "tests": {
+      "totalCount": 46,
+      "passCount": 46,
+      "failCount": 0,
+      "skipCount": 0
+    },
+    "telegram_confirmed": true,
+    "artifacts": [
+      "ci-output/backend.log",
+      "ci-output/frontend.log",
+      "frontend/dist/assets/browser-B5Ed-OmB.js",
+      "frontend/dist/assets/index-DOTVQUo_.css",
+      "frontend/dist/assets/index-Ld_nGq0T.js",
+      "frontend/dist/assets/logo-Byo9CZoo.png",
+      "frontend/dist/index.html",
+      "target/asset-management-0.0.1-SNAPSHOT.jar"
+    ]
+  }
+]

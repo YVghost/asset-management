@@ -282,3 +282,5 @@ Referencias oficiales de compatibilidad: [Spring Boot 4.1.1](https://spring.io/b
 ## Jenkins CI
 
 Instalación local, credenciales GitHub/Telegram y demostración de las tres etapas: [GUIA_ENTREGA_JENKINS.md](GUIA_ENTREGA_JENKINS.md). Estado de comprobaciones reales: [ci/VALIDACION.md](ci/VALIDACION.md). Usa el Compose separado docker-compose.jenkins.yml; no reemplaza el despliegue de la aplicación.
+
+Informe breve con capturas: [INFORME_JENKINS_MATEO_ORTEGA.docx](docs/INFORME_JENKINS_MATEO_ORTEGA.docx). Ejecuciones reales: #1 SUCCESS y #2 FAILURE controlado, con 46 pruebas aprobadas y notificación Telegram en cada caso.

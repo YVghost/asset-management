@@ -168,3 +168,7 @@ El último comando usa el validador declarativo REAL del Jenkins local. Antes de
 Para probar los comandos del build en la imagen local sin publicar cambios (solo pruebas, no valida el checkout privado ni envía Telegram), copia el proyecto de trabajo a un contenedor temporal o ejecuta el job después de subir los archivos. No montes la base real de la aplicación en CI.
 
 El estado de verificaciones reales y pendientes se registra en `ci/VALIDACION.md`. Crear credenciales, cambiar visibilidad, publicar la rama y enviar notificaciones reales requieren tu configuración manual; no se declaran completados por disponer de los scripts.
+
+## Ejecuciones reales completadas
+
+Con autorización del usuario, la configuración se publicó en mateo_ortega y se ejecutaron los builds #1 SUCCESS y #2 FAILURE controlado. Ambos aprobaron 46 pruebas y enviaron sus notificaciones reales por Telegram. El informe Word está en [docs/INFORME_JENKINS_MATEO_ORTEGA.docx](docs/INFORME_JENKINS_MATEO_ORTEGA.docx), con espacios para añadir las fotos de Telegram. Las capturas y consolas están en [docs/evidencias-jenkins](docs/evidencias-jenkins/).
