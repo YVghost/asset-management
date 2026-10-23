@@ -1,0 +1,7 @@
+**
+!ci/
+!ci/jenkins/
+!ci/jenkins/Dockerfile
+!ci/jenkins/plugins.txt
+!ci/jenkins/executors.groovy
+!ci/notify_telegram.py

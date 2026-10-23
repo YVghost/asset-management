@@ -278,3 +278,7 @@ docker compose start backend frontend
 Para restaurar sobre datos existentes, prepara primero una base nueva o aplica una política explícita de reemplazo. Los comandos anteriores no eliminan tablas existentes automáticamente.
 
 Referencias oficiales de compatibilidad: [Spring Boot 4.1.1](https://spring.io/blog/2026/08/20/spring-boot-4-1-1-available-now/), [documentación Spring Boot](https://docs.spring.io/spring-boot/reference/).
+
+## Jenkins CI
+
+Instalación local, credenciales GitHub/Telegram y demostración de las tres etapas: [GUIA_ENTREGA_JENKINS.md](GUIA_ENTREGA_JENKINS.md). Estado de comprobaciones reales: [ci/VALIDACION.md](ci/VALIDACION.md). Usa el Compose separado docker-compose.jenkins.yml; no reemplaza el despliegue de la aplicación.

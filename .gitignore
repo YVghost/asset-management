@@ -41,3 +41,8 @@ frontend/dist/
 backups/
 frontend/test-results/
 frontend/playwright-report/
+
+# Jenkins CI local
+ci-output/
+frontend/reports/
+**/__pycache__/

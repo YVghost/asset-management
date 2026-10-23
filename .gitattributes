@@ -1,2 +1,6 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+# Scripts ejecutados en el agente Linux de Jenkins
+ci/*.sh text eol=lf
+Jenkinsfile text eol=lf
