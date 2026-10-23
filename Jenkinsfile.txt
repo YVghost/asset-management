@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+
+    options {
+        skipDefaultCheckout(true)
+        timestamps()
+    }
+
+    environment {
+        REPO_URL = 'https://github.com/YVghost/asset-management.git'
+        GIT_BRANCH = 'mateo_ortega'
+    }
+
+    stages {
+        stage('1. Integracion al repositorio privado') {
+            steps {
+                script {
+                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                        checkout scmGit(
+                            branches: [[name: env.GIT_BRANCH]],
+                            userRemoteConfigs: [[
+                                url: env.REPO_URL,
+                                credentialsId: 'repo-privado'
+                            ]]
+                        )
+                        echo 'Repositorio privado descargado correctamente.'
+                    }
+                }
+            }
+        }
+
+        stage('2. Compilacion y tests automatizados') {
+            when {
+                expression { currentBuild.currentResult == 'SUCCESS' }
+            }
+            steps {
+                script {
+                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                        sh '''
+                            set -e
+                            if [ -f pom.xml ]; then
+                                echo "Proyecto Java/Maven detectado"
+                                mvn -B clean verify
+                            elif [ -f package.json ]; then
+                                echo "Proyecto Node.js detectado"
+                                npm ci
+                                npm run build --if-present
+                                CI=true npm test
+                            else
+                                echo "ERROR: no se encontro pom.xml ni package.json. Adapta esta etapa a tu proyecto." >&2
+                                exit 1
+                            fi
+                        '''
+                        echo 'Compilacion y pruebas finalizadas correctamente.'
+                    }
+                }
+            }
+        }
+
+        stage('3. Notificacion por Telegram') {
+            steps {
+                script {
+                    def resultado = currentBuild.currentResult
+                    withEnv(["PIPELINE_RESULT=${resultado}"]) {
+                        withCredentials([
+                            string(credentialsId: 'telegram-token', variable: 'TELEGRAM_TOKEN'),
+                            string(credentialsId: 'telegram-chat-id', variable: 'TELEGRAM_CHAT_ID')
+                        ]) {
+                            sh '''
+                                set +x
+                                MENSAJE="Jenkins: ${JOB_NAME} #${BUILD_NUMBER} -> ${PIPELINE_RESULT}. Detalles: ${BUILD_URL}"
+                                curl --fail --silent --show-error --output /dev/null \
+                                    --request POST \
+                                    --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+                                    --data-urlencode "text=${MENSAJE}" \
+                                    "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage"
+                            '''
+                        }
+                    }
+                    echo "Notificacion enviada. Resultado de compilacion: ${resultado}"
+                }
+            }
+        }
+    }
+}
