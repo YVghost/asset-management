@@ -1,0 +1,12 @@
+Apache Maven 3.10.0 (c43a36b8d67be7e0805a411bc0898af1a51f5472)
+Java version: 21.0.13, vendor: Eclipse Adoptium, runtime: /usr/local/jdk-21.0.13
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.083 s -- in com.assetmanager.organization.BrandingContrastTest
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 24.13 s -- in com.assetmanager.InventoryIntegrationTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in com.assetmanager.asset.LifecycleTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.assetmanager.DevelopmentSeedTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.assetmanager.AssetManagementApplicationTests
+[INFO] Tests run: 29, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  01:48 min
+Backend: 29 pruebas, 0 fallidas, 0 omitidas
+Integración PostgreSQL: 21 pruebas, 0 fallidas, 0 omitidas

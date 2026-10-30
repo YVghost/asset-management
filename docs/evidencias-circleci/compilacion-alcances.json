@@ -1,0 +1,16 @@
+{
+  "cli": "1.12.0",
+  "validation": "official CircleCI configuration API",
+  "compiled_workflows": {
+    "full": [
+      "full-validation"
+    ],
+    "backend": [
+      "selective-validation"
+    ],
+    "frontend": [
+      "selective-validation"
+    ]
+  },
+  "hosted_pipeline_executed": false
+}

@@ -1,0 +1,133 @@
+version: 2.1
+parameters:
+  scope:
+    type: enum
+    enum: [full, backend, frontend]
+    default: full
+  force-failure:
+    type: boolean
+    default: false
+commands:
+  notify:
+    parameters:
+      result:
+        type: string
+      condition:
+        type: enum
+        enum: [always, on_fail, on_success]
+        default: on_success
+    steps:
+      - run:
+          name: Telegram << parameters.result >>
+          when: << parameters.condition >>
+          command: |
+            export PIPELINE_RESULT='<< parameters.result >>'
+            export JOB_NAME="CircleCI/${CIRCLE_JOB}"
+            export BUILD_NUMBER="$CIRCLE_BUILD_NUM"
+            export SOURCE_BRANCH="$CIRCLE_BRANCH"
+            export BUILD_URL="$CIRCLE_BUILD_URL"
+            python3 ci/notify_telegram.py
+  failure-demo:
+    steps:
+      - when:
+          condition: << pipeline.parameters.force-failure >>
+          steps:
+            - run: {name: Fallo controlado posterior a las pruebas, command: 'exit 1'}
+jobs:
+  backend:
+    docker:
+      - image: cimg/openjdk:21.0
+      - image: postgres:17.6-alpine
+        environment:
+          POSTGRES_DB: ams_ci
+          POSTGRES_USER: ams_ci
+          POSTGRES_PASSWORD: ci-only-not-a-production-secret
+    environment:
+      AMS_TEST_DATABASE_URL: jdbc:postgresql://localhost:5432/ams_ci
+      AMS_TEST_DATABASE_USER: ams_ci
+      AMS_TEST_DATABASE_PASSWORD: ci-only-not-a-production-secret
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-v1-java21-{{ checksum "pom.xml" }}
+      - run:
+          name: Esperar PostgreSQL y compilar con pruebas reales
+          command: |
+            for i in $(seq 1 60); do
+              if (echo > /dev/tcp/localhost/5432) 2>/dev/null; then break; fi
+              sleep 1
+            done
+            mvn -B -ntp clean verify
+      - run:
+          name: Rechazar reportes ausentes, fallidos u omitidos
+          command: python3 ci/check_circle_reports.py backend
+      - save_cache:
+          key: maven-v1-java21-{{ checksum "pom.xml" }}
+          paths: [~/.m2/repository]
+      - store_test_results: {path: target/surefire-reports}
+      - store_artifacts: {path: target/surefire-reports, destination: backend-tests}
+      - store_artifacts: {path: target/asset-management-0.0.1-SNAPSHOT.jar}
+      - failure-demo
+      - notify: {result: FAILURE, condition: on_fail}
+  frontend:
+    docker:
+      - image: cimg/node:22.20
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - npm-v1-node22-{{ checksum "frontend/package-lock.json" }}
+      - run:
+          name: Instalacion reproducible, pruebas y compilacion
+          command: |
+            cd frontend
+            npm ci --no-audit --no-fund
+            npm test -- --reporter=default --reporter=junit --outputFile=reports/vitest.xml
+            npm run build
+      - run:
+          name: Comprobar pruebas frontend
+          command: python3 ci/check_circle_reports.py frontend
+      - save_cache:
+          key: npm-v1-node22-{{ checksum "frontend/package-lock.json" }}
+          paths: [~/.npm]
+      - store_test_results: {path: frontend/reports}
+      - store_artifacts: {path: frontend/reports, destination: frontend-tests}
+      - store_artifacts: {path: frontend/dist, destination: frontend-dist}
+      - failure-demo
+      - notify: {result: FAILURE, condition: on_fail}
+  helpers:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run: python3 -m unittest discover -s ci/tests -v
+      - notify: {result: FAILURE, condition: on_fail}
+  notify-success:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - notify: {result: SUCCESS}
+workflows:
+  full-validation:
+    when:
+      equal: [full, << pipeline.parameters.scope >>]
+    jobs:
+      - backend
+      - frontend
+      - helpers
+      - notify-success:
+          requires: [backend, frontend, helpers]
+  selective-validation:
+    when:
+      not:
+        equal: [full, << pipeline.parameters.scope >>]
+    jobs:
+      - backend:
+          filters: pipeline.parameters.scope == "backend"
+      - frontend:
+          filters: pipeline.parameters.scope == "frontend"
+      - helpers
+      - notify-success:
+          requires: [backend, frontend, helpers]

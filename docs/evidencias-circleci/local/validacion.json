@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-29",
+  "execution": "local, no CircleCI",
+  "backend": {
+    "passed": 29,
+    "integration": 21,
+    "failed": 0,
+    "skipped": 0,
+    "maven_seconds": 20.17,
+    "jdk": "25.0.2, target Java 21"
+  },
+  "frontend": {
+    "passed": 17,
+    "failed": 0,
+    "skipped": 0,
+    "vitest_seconds": 15.59,
+    "vite_seconds": 19.48,
+    "build": "success"
+  },
+  "ci_helpers": {
+    "passed": 10,
+    "telegram": "mocked; no real messages sent"
+  },
+  "yaml": "parsed with PyYAML; also validated and processed by official CircleCI CLI 1.12.0",
+  "circleci_hosted": "not executed"
+}

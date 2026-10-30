@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="17" failures="0" errors="0" time="0.2045311">
+    <testsuite name="src/branding/branding.test.tsx" timestamp="2026-10-30T02:31:40.416Z" hostname="MSI" tests="3" failures="0" errors="0" skipped="0" time="0.033843">
+        <testcase classname="src/branding/branding.test.tsx" name="mantiene un tema genérico independiente del tema Edinun" time="0.0009152">
+        </testcase>
+        <testcase classname="src/branding/branding.test.tsx" name="usa el logo autenticado de la empresa y no el de otra" time="0.0001202">
+        </testcase>
+        <testcase classname="src/branding/branding.test.tsx" name="retira la identidad de Edinun al entrar al panel maestro" time="0.0320667">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/navigation.test.tsx" timestamp="2026-10-30T02:31:40.418Z" hostname="MSI" tests="3" failures="0" errors="0" skipped="0" time="0.0480605">
+        <testcase classname="src/components/navigation.test.tsx" name="navega a una ficha desde su enlace" time="0.0444712">
+            <system-err>
+No routes matched location &quot;/&quot; 
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/components/navigation.test.tsx" name="distingue vida restante ausente de vida agotada" time="0.0002433">
+        </testcase>
+        <testcase classname="src/components/navigation.test.tsx" name="bloquea la paginación fuera de límites" time="0.0027695">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/features/assetSchema.test.ts" timestamp="2026-10-30T02:31:40.419Z" hostname="MSI" tests="6" failures="0" errors="0" skipped="0" time="0.0058158">
+        <testcase classname="src/features/assetSchema.test.ts" name="Registro de activos &gt; permite periféricos sin procesador o RAM" time="0.0034076">
+        </testcase>
+        <testcase classname="src/features/assetSchema.test.ts" name="Registro de activos &gt; requiere código, nombre y categoría" time="0.0009741">
+        </testcase>
+        <testcase classname="src/features/assetSchema.test.ts" name="Registro de activos &gt; rechaza costos negativos y fracciones de meses" time="0.0003001">
+        </testcase>
+        <testcase classname="src/features/assetSchema.test.ts" name="Registro de activos &gt; rechaza entrada en servicio previa a compra" time="0.0001486">
+        </testcase>
+        <testcase classname="src/features/assetSchema.test.ts" name="Registro de activos &gt; valida vencimiento digital y puestos" time="0.0001739">
+        </testcase>
+        <testcase classname="src/features/assetSchema.test.ts" name="Registro de activos &gt; normaliza los campos opcionales" time="0.0001936">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/features/qrOrigin.test.ts" timestamp="2026-10-30T02:31:40.420Z" hostname="MSI" tests="2" failures="0" errors="0" skipped="0" time="0.0025338">
+        <testcase classname="src/features/qrOrigin.test.ts" name="conserva dominio y puerto y normaliza la barra final" time="0.0012296">
+        </testcase>
+        <testcase classname="src/features/qrOrigin.test.ts" name="rechaza credenciales, scripts, rutas, consultas y fragmentos" time="0.0007285">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/Login.test.tsx" timestamp="2026-10-30T02:31:40.420Z" hostname="MSI" tests="3" failures="0" errors="0" skipped="0" time="0.114278">
+        <testcase classname="src/pages/Login.test.tsx" name="Inicio de sesión &gt; valida campos sin invocar la API" time="0.0696298">
+        </testcase>
+        <testcase classname="src/pages/Login.test.tsx" name="Inicio de sesión &gt; envía credenciales y abre la sesión" time="0.0176343">
+        </testcase>
+        <testcase classname="src/pages/Login.test.tsx" name="Inicio de sesión &gt; muestra rechazo del servidor" time="0.0264167">
+        </testcase>
+    </testsuite>
+</testsuites>

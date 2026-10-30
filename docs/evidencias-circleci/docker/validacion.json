@@ -1,0 +1,29 @@
+{
+  "execution": "local Docker; not CircleCI hosted",
+  "date": "2026-10-29",
+  "backend": {
+    "image": "cimg/openjdk:21.0",
+    "jdk": "21.0.13",
+    "maven": "3.10.0",
+    "tests": 29,
+    "integration_tests": 21,
+    "failed": 0,
+    "skipped": 0,
+    "maven_time": "01:48 min",
+    "cache": "mounted existing local Maven repository; not a controlled cold/warm benchmark"
+  },
+  "frontend": {
+    "image": "cimg/node:22.20",
+    "node": "22.20.0",
+    "npm": "10.9.3",
+    "tests": 17,
+    "failed": 0,
+    "skipped": 0,
+    "vitest_seconds": 1.02,
+    "vite_seconds": 2.41,
+    "dependency_install": "npm ci in clean temporary copy",
+    "build": "passed"
+  },
+  "circleci_config": "validated and processed by official CLI 1.12.0",
+  "notifications": "not sent from Docker; unit tests use mocks"
+}

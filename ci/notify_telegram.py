@@ -25,7 +25,7 @@ def main():
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
     if not token or not chat_id:
-        print("ERROR: faltan credenciales de Telegram en Jenkins", file=sys.stderr)
+        print("ERROR: faltan credenciales de Telegram en el entorno CI", file=sys.stderr)
         return 1
     try:
         data = urlencode({"chat_id": chat_id, "text": message(os.environ),
