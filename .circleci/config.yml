@@ -1,3 +1,4 @@
+# Native CircleCI configuration. Do not enable the GitHub Actions runner for this file.
 version: 2.1
 parameters:
   scope:
@@ -8,6 +9,20 @@ parameters:
     type: boolean
     default: false
 commands:
+  checkout-project:
+    steps:
+      - checkout
+      - run:
+          name: Verificar checkout y directorio del proyecto
+          command: |
+            printf 'Directorio: %s\n' "$PWD"
+            git log -1 --format='Commit: %h'
+            for path in pom.xml frontend/package-lock.json ci/tests/test_ci_helpers.py ci/notify_telegram.py; do
+              if [ ! -f "$path" ]; then
+                echo "ERROR: falta $path. Comprueba Checkout source, rama y directorio de trabajo." >&2
+                exit 1
+              fi
+            done
   notify:
     parameters:
       result:
@@ -35,6 +50,7 @@ commands:
             - run: {name: Fallo controlado posterior a las pruebas, command: 'exit 1'}
 jobs:
   backend:
+    working_directory: ~/project
     docker:
       - image: cimg/openjdk:21.0
       - image: postgres:17.6-alpine
@@ -47,17 +63,17 @@ jobs:
       AMS_TEST_DATABASE_USER: ams_ci
       AMS_TEST_DATABASE_PASSWORD: ci-only-not-a-production-secret
     steps:
-      - checkout
+      - checkout-project
       - restore_cache:
           keys:
             - maven-v1-java21-{{ checksum "pom.xml" }}
       - run:
           name: Esperar PostgreSQL y compilar con pruebas reales
           command: |
-            for i in $(seq 1 60); do
-              if (echo > /dev/tcp/localhost/5432) 2>/dev/null; then break; fi
-              sleep 1
-            done
+            if ! timeout 60 bash -c 'until (echo > /dev/tcp/localhost/5432) 2>/dev/null; do sleep 1; done'; then
+              echo 'ERROR: PostgreSQL de pruebas no estuvo disponible en 60 segundos.' >&2
+              exit 1
+            fi
             mvn -B -ntp clean verify
       - run:
           name: Rechazar reportes ausentes, fallidos u omitidos
@@ -71,10 +87,11 @@ jobs:
       - failure-demo
       - notify: {result: FAILURE, condition: on_fail}
   frontend:
+    working_directory: ~/project
     docker:
       - image: cimg/node:22.20
     steps:
-      - checkout
+      - checkout-project
       - restore_cache:
           keys:
             - npm-v1-node22-{{ checksum "frontend/package-lock.json" }}
@@ -97,17 +114,19 @@ jobs:
       - failure-demo
       - notify: {result: FAILURE, condition: on_fail}
   helpers:
+    working_directory: ~/project
     docker:
       - image: cimg/python:3.11
     steps:
-      - checkout
+      - checkout-project
       - run: python3 -m unittest discover -s ci/tests -v
       - notify: {result: FAILURE, condition: on_fail}
   notify-success:
+    working_directory: ~/project
     docker:
       - image: cimg/python:3.11
     steps:
-      - checkout
+      - checkout-project
       - notify: {result: SUCCESS}
 workflows:
   full-validation:

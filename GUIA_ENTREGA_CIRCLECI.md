@@ -9,6 +9,12 @@
 
 ## Activar en CircleCI
 
+En Project Settings → Project Setup, configurar tanto Config source como Checkout source con `asset-management`, y Config filepath con `.circleci/config.yml`. En la edición del archivo, desactivar **Use existing GitHub Actions workflow file** si aparece seleccionada. Este YAML es de CircleCI y no es un workflow de GitHub Actions. Ejecutar la rama que contenga este archivo y la carpeta `ci/tests`.
+
+Una ejecución nativa debe mostrar `full-validation` o `selective-validation`. Si muestra `gha`, `circleci run actions exec`, o rechaza el parámetro `scope`, revisar el modo de ejecución y la fuente de configuración antes de modificar las pruebas. La ruta correcta en pantalla por sí sola no confirma el modo del ejecutor.
+
+Cada job realiza checkout y comprueba los archivos requeridos desde `~/project`; el paso **Verificar checkout y directorio del proyecto** imprime únicamente el directorio y el identificador del commit para facilitar el diagnóstico.
+
 1. Publicar estos cambios en la rama que se evaluará. En CircleCI, conectar GitHub con acceso al repositorio `YVghost/asset-management` y crear el proyecto usando su configuración existente `.circleci/config.yml`.
 2. En Project Settings → Environment Variables, registrar `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`. Usar los mismos valores que Jenkins; no copiarlos a YAML, commits ni capturas. El destinatario debe haber iniciado el bot o autorizado su acceso al grupo.
 3. Ejecutar un pipeline sobre esa rama con `scope=full` y `force-failure=false`. En la interfaz que permita parámetros, agregar esos valores; si la integración no muestra el formulario, usar la API de disparo correspondiente al tipo de conexión GitHub del proyecto. Los commits normales usan esos valores por defecto.
